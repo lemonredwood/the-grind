@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Grind — LeetCode Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #fbfbfc; --line: #e6e8ec;
+    --line-strong: #d3d7de; --ink: #171a21; --muted: #656b78; --faint: #9aa2b1;
+    --p1: #4f46e5; --p1-soft: #eef0fe;
+    --easy: #0d9488; --medium: #d97706; --hard: #e11d48;
+    --easy-soft: #e5f4f2; --medium-soft: #fbf0e0; --hard-soft: #fce8ee;
+    --ok: #0d9488; --ok-soft: #e5f4f2; --warn: #d97706; --warn-soft: #fbf0e0;
+    --radius: 14px; --radius-sm: 9px;
+    --shadow: 0 1px 2px rgba(20,26,40,.05), 0 8px 24px -12px rgba(20,26,40,.14);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, "Cascadia Code", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --surface: #171a21; --surface-2: #1b1f27; --line: #262a33;
+      --line-strong: #333846; --ink: #eef0f4; --muted: #9aa2b1; --faint: #6b7280;
+      --p1: #818cf8; --p1-soft: #21243a;
+      --easy: #2dd4bf; --medium: #f59e0b; --hard: #fb7185;
+      --easy-soft: #0f2b28; --medium-soft: #2c2110; --hard-soft: #2e1620;
+      --ok: #2dd4bf; --ok-soft: #0f2b28; --warn: #f59e0b; --warn-soft: #2c2110;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg:#f6f7f9;--surface:#fff;--surface-2:#fbfbfc;--line:#e6e8ec;--line-strong:#d3d7de;
+    --ink:#171a21;--muted:#656b78;--faint:#9aa2b1;--p1:#4f46e5;--p1-soft:#eef0fe;
+    --easy:#0d9488;--medium:#d97706;--hard:#e11d48;--easy-soft:#e5f4f2;--medium-soft:#fbf0e0;--hard-soft:#fce8ee;
+    --ok:#0d9488;--ok-soft:#e5f4f2;--warn:#d97706;--warn-soft:#fbf0e0;
+    --shadow:0 1px 2px rgba(20,26,40,.05),0 8px 24px -12px rgba(20,26,40,.14);
+  }
+  :root[data-theme="dark"] {
+    --bg:#0f1115;--surface:#171a21;--surface-2:#1b1f27;--line:#262a33;--line-strong:#333846;
+    --ink:#eef0f4;--muted:#9aa2b1;--faint:#6b7280;--p1:#818cf8;--p1-soft:#21243a;
+    --easy:#2dd4bf;--medium:#f59e0b;--hard:#fb7185;--easy-soft:#0f2b28;--medium-soft:#2c2110;--hard-soft:#2e1620;
+    --ok:#2dd4bf;--ok-soft:#0f2b28;--warn:#f59e0b;--warn-soft:#2c2110;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  [hidden] { display:none !important; }
+  .wrap { max-width:1000px; margin:0 auto; padding:28px 20px 80px; }
+
+  header.top { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .brand h1 { margin:0; font-size:1.6rem; letter-spacing:-.02em; font-weight:680; text-wrap:balance; }
+  .brand .sub { margin:2px 0 0; color:var(--muted); font-size:.86rem; font-family:var(--mono); }
+  .brand .sub b { color:var(--ink); font-weight:600; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+  button, .btn { font-family:var(--sans); font-size:.82rem; font-weight:550; color:var(--ink);
+    background:var(--surface); border:1px solid var(--line-strong); padding:8px 12px; border-radius:var(--radius-sm);
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px; line-height:1; transition:background .12s,border-color .12s,transform .04s; }
+  button:hover, .btn:hover { background:var(--surface-2); border-color:var(--faint); }
+  button:active { transform:translateY(1px); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--p1); border-color:var(--p1); color:#fff; }
+  button.primary:hover { filter:brightness(1.06); background:var(--p1); }
+  button.primary:disabled { filter:none; }
+  button.ghost-danger { color:var(--hard); border-color:transparent; background:transparent; }
+  button.ghost-danger:hover { background:var(--hard-soft); }
+  :focus-visible { outline:2px solid var(--p1); outline-offset:2px; }
+
+  .roomchip { font-family:var(--mono); font-size:.78rem; letter-spacing:.02em; }
+  .roomchip .rdot { width:7px; height:7px; border-radius:50%; background:var(--faint); flex:none; box-shadow:0 0 0 3px transparent; transition:background .2s,box-shadow .2s; }
+  .roomchip.live .rdot { background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft); }
+  .roomchip.warn .rdot { background:var(--warn); box-shadow:0 0 0 3px var(--warn-soft); }
+  .roomchip.off .rdot  { background:var(--hard); box-shadow:0 0 0 3px var(--hard-soft); }
+  .roomchip b { color:var(--ink); font-weight:600; }
+
+  /* leaderboard */
+  .board { display:grid; grid-template-columns:repeat(auto-fill, minmax(216px,1fr)); gap:14px; margin-bottom:14px; }
+  .pcard { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 16px 14px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .pcard::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background:var(--pc,var(--p1)); }
+  .pcard.leading { box-shadow:var(--shadow),0 0 0 1.5px var(--pc); }
+  .pname { display:flex; align-items:center; gap:7px; margin-bottom:13px; padding-right:18px; }
+  .rk { font-family:var(--mono); font-size:.72rem; color:var(--faint); font-weight:600; min-width:1.1ch; text-align:right; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--pc); flex:none; }
+  .nameinput { font-family:var(--sans); font-weight:640; font-size:.98rem; color:var(--ink); background:transparent;
+    border:none; border-bottom:1px dashed transparent; padding:2px 0; width:100%; min-width:0; letter-spacing:-.01em; }
+  .nameinput:hover { border-bottom-color:var(--line-strong); }
+  .nameinput:focus { outline:none; border-bottom-color:var(--pc); }
+  .crown { font-size:.9rem; flex:none; }
+  .removep { position:absolute; top:9px; right:9px; border:none; background:transparent; color:var(--faint); cursor:pointer; font-size:.8rem; padding:3px 5px; border-radius:6px; opacity:0; transition:opacity .12s,background .12s,color .12s; }
+  .pcard:hover .removep, .removep:focus-visible { opacity:1; }
+  .removep:hover { color:var(--hard); background:var(--hard-soft); }
+  .statrow { display:flex; gap:16px; margin-bottom:14px; }
+  .stat .k { font-family:var(--mono); font-size:1.55rem; font-weight:600; letter-spacing:-.02em; line-height:1; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .stat .k .u { font-size:.66rem; color:var(--muted); font-weight:500; margin-left:2px; }
+  .stat .l { text-transform:uppercase; letter-spacing:.06em; font-size:.6rem; color:var(--muted); margin-top:6px; font-weight:600; }
+  .stat .k.streak.hot { color:var(--pc); }
+  .breakdown { margin-top:2px; }
+  .bar { height:7px; border-radius:6px; background:var(--line); overflow:hidden; display:flex; }
+  .bar i { display:block; height:100%; }
+  .bar i.e { background:var(--easy); } .bar i.m { background:var(--medium); } .bar i.h { background:var(--hard); }
+  .blabels { display:flex; gap:12px; margin-top:8px; font-family:var(--mono); font-size:.7rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .blabels span b { color:var(--ink); font-weight:600; }
+  .blabels .sw { display:inline-block; width:7px; height:7px; border-radius:2px; margin-right:4px; }
+  .emptyboard { grid-column:1/-1; padding:30px 20px; text-align:center; color:var(--muted); border:1px dashed var(--line-strong); border-radius:var(--radius); background:var(--surface); font-size:.9rem; }
+  .emptyboard b { color:var(--ink); }
+
+  /* add person */
+  .addperson { margin:0 0 22px; }
+  .addperson form { display:flex; gap:8px; }
+  .addperson input { flex:1; min-width:0; font-family:var(--sans); font-size:.85rem; background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--radius-sm); padding:9px 11px; color:var(--ink); }
+  .addperson input::placeholder { color:var(--faint); }
+  .addperson input:focus { outline:none; border-color:var(--p1); box-shadow:0 0 0 3px var(--p1-soft); }
+
+  /* log */
+  section.log { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+  .log-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .log-head h2 { margin:0; font-size:.95rem; font-weight:640; letter-spacing:-.01em; }
+  .log-head h2 span { color:var(--faint); font-family:var(--mono); font-weight:500; margin-left:6px; font-size:.85rem; }
+  .seg { display:flex; flex-wrap:wrap; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:2px; gap:2px; max-width:100%; }
+  .seg button { border:none; background:transparent; padding:5px 10px; font-size:.78rem; border-radius:6px; color:var(--muted); font-weight:550; display:inline-flex; align-items:center; }
+  .seg button:hover { background:transparent; color:var(--ink); }
+  .seg button.on { background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .seg .pdot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .addrow { display:grid; grid-template-columns:1fr 92px 1fr 104px 150px auto; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); align-items:center; background:var(--surface-2); }
+  .addrow input, .addrow select { font-family:var(--sans); font-size:.82rem; color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:8px; padding:8px 9px; width:100%; min-width:0; }
+  .addrow input::placeholder { color:var(--faint); }
+  .addrow input:focus, .addrow select:focus { outline:none; border-color:var(--p1); box-shadow:0 0 0 3px var(--p1-soft); }
+  .tbl-scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; min-width:580px; }
+  thead th { text-align:left; font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:600; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--surface); }
+  tbody td { padding:11px 16px; border-bottom:1px solid var(--line); font-size:.87rem; vertical-align:middle; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--surface-2); }
+  .who { display:inline-flex; align-items:center; gap:7px; font-family:var(--mono); font-size:.8rem; }
+  .who .d { width:8px; height:8px; border-radius:50%; flex:none; }
+  .ptitle { font-weight:550; }
+  .ptopic { color:var(--muted); font-size:.78rem; font-family:var(--mono); }
+  .pill { font-family:var(--mono); font-size:.68rem; font-weight:600; letter-spacing:.03em; padding:3px 8px; border-radius:999px; text-transform:uppercase; }
+  .pill.e { color:var(--easy); background:var(--easy-soft); } .pill.m { color:var(--medium); background:var(--medium-soft); } .pill.h { color:var(--hard); background:var(--hard-soft); }
+  td.date { font-family:var(--mono); font-size:.78rem; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.pts { font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .del { border:none; background:transparent; color:var(--faint); cursor:pointer; padding:4px 6px; border-radius:6px; font-size:.95rem; line-height:1; }
+  .del:hover { color:var(--hard); background:var(--hard-soft); }
+  .empty { padding:46px 20px; text-align:center; color:var(--muted); }
+  .empty .big { font-size:1.6rem; margin-bottom:8px; }
+  .empty p { margin:4px 0; font-size:.88rem; }
+
+  .foot { margin-top:18px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; color:var(--faint); font-size:.74rem; font-family:var(--mono); }
+  .rules b { color:var(--muted); font-weight:600; }
+  #syncStatus { display:inline-flex; align-items:center; gap:7px; }
+  #syncStatus .sdot { width:7px; height:7px; border-radius:50%; background:var(--faint); flex:none; box-shadow:0 0 0 3px transparent; }
+  #syncStatus.live .sdot { background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft); }
+  #syncStatus.warn { color:var(--warn); } #syncStatus.warn .sdot { background:var(--warn); box-shadow:0 0 0 3px var(--warn-soft); }
+  #syncStatus.off { color:var(--hard); } #syncStatus.off .sdot { background:var(--hard); box-shadow:0 0 0 3px var(--hard-soft); }
+
+  /* gate */
+  .gate { min-height:100vh; display:grid; place-items:center; padding:24px; }
+  .gatecard { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px 26px; }
+  .gatecard h1 { margin:0 0 2px; font-size:1.5rem; letter-spacing:-.02em; }
+  .gatecard .lead { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
+  .field { display:block; margin-bottom:14px; }
+  .field label { display:block; font-size:.7rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:600; margin-bottom:6px; }
+  .field input { width:100%; font-family:var(--mono); font-size:1rem; letter-spacing:.02em; color:var(--ink); background:var(--bg); border:1px solid var(--line-strong); border-radius:var(--radius-sm); padding:11px 12px; }
+  .field input:focus { outline:none; border-color:var(--p1); box-shadow:0 0 0 3px var(--p1-soft); }
+  .gatecard .go { width:100%; justify-content:center; padding:12px; font-size:.9rem; margin-top:4px; }
+  .hint { margin:16px 0 0; font-size:.78rem; color:var(--faint); line-height:1.5; }
+  .hint code { font-family:var(--mono); color:var(--muted); background:var(--bg); padding:1px 5px; border-radius:5px; }
+  .notice { background:var(--warn-soft); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; font-size:.82rem; margin-bottom:16px; }
+  .notice b { color:var(--warn); }
+
+  @media (max-width:680px) {
+    .addrow { grid-template-columns:1fr 1fr; } .addrow .full { grid-column:1 / -1; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ============ GATE ============ -->
+<div class="gate" id="gate">
+  <div class="gatecard" id="gateCard"></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div class="brand">
+      <h1>The Grind</h1>
+      <p class="sub">room <b id="roomLabel">—</b> · <span id="crew">0 grinding</span> · synced live</p>
+    </div>
+    <div class="actions">
+      <button id="copyRoom" class="roomchip" title="Copy room code to share"><span class="rdot" id="roomDot"></span><b id="roomCode">room</b> · copy</button>
+      <button id="export">↓ Export</button>
+      <button id="clear" class="ghost-danger">Clear solves</button>
+      <button id="leave">Leave</button>
+    </div>
+  </header>
+
+  <div class="board" id="board"></div>
+
+  <div class="addperson">
+    <form id="addPlayerForm">
+      <input id="playerName" placeholder="Add a teammate to the room…" maxlength="24" autocomplete="off">
+      <button class="primary" type="submit">+ Add person</button>
+    </form>
+  </div>
+
+  <section class="log">
+    <div class="log-head">
+      <h2>Problem log <span id="count">0</span></h2>
+      <div class="seg" id="filter"></div>
+    </div>
+    <form class="addrow" id="addForm">
+      <input class="full" id="f-title" placeholder="Problem name — e.g. Two Sum" required>
+      <input id="f-num" placeholder="#" inputmode="numeric" aria-label="Problem number">
+      <input id="f-topic" placeholder="Topic — e.g. Hash Map">
+      <select id="f-diff" aria-label="Difficulty">
+        <option value="e">Easy</option><option value="m" selected>Medium</option><option value="h">Hard</option>
+      </select>
+      <select id="f-who" aria-label="Who solved it"></select>
+      <button type="submit" id="addBtn" class="primary full">+ Log it</button>
+    </form>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Problem</th><th>Diff</th><th>Who</th><th>Date</th><th style="text-align:right">Pts</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>
+      <div class="big">🌱</div>
+      <p><b>No problems logged yet.</b></p>
+      <p>Add a solve above — it shows up on everyone's screen instantly.</p>
+    </div>
+  </section>
+
+  <div class="foot">
+    <div class="rules">Points: <b>Easy 1</b> · <b>Medium 3</b> · <b>Hard 5</b> &nbsp;·&nbsp; 🔥 = current daily streak</div>
+    <div id="syncStatus"><span class="sdot"></span>Connecting…</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+     CONFIG — paste your Supabase project URL + anon (public) key.
+     Supabase → Project Settings → API.
+     ============================================================ */
+  var CONFIG = {
+    url:     "https://YOUR-PROJECT-REF.supabase.co",
+    anonKey: "YOUR-PUBLIC-ANON-KEY"
+  };
+
+  var TBL_P = "grind_players", TBL_S = "grind_solves";
+  var POINTS = { e: 1, m: 3, h: 5 };
+  var DIFF_NAME = { e: "Easy", m: "Medium", h: "Hard" };
+  // Distinct hues for the first several people; golden-angle after that.
+  var HUES = [245, 190, 330, 24, 160, 270, 210, 90, 300, 45, 130, 15];
+
+  var db = null, room = null;
+  var players = [];   // [{id, name}] in creation order
+  var solves = [];    // [{id, player_id, title, num, topic, diff, date}]
+  var colorIndex = {};// player_id -> stable color slot
+  var byId = {};      // player_id -> {name, color}
+  var filter = "all";
+  var channel = null, refreshTimer = null, boardDirty = false;
+
+  var configOK = CONFIG.url.indexOf("YOUR-PROJECT") === -1 && CONFIG.anonKey.indexOf("YOUR-PUBLIC") === -1;
+
+  // ---- helpers ----
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function todayISO() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function fmt(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]; }); }
+  function hueFor(i) { return i < HUES.length ? HUES[i] : Math.round((245 + i * 137.508) % 360); }
+  function pColor(pid) { return "hsl(" + hueFor(colorIndex[pid] || 0) + " 68% 56%)"; }
+
+  function currentStreak(pid) {
+    var set = {};
+    solves.forEach(function (s) { if (s.player_id === pid) set[s.date] = true; });
+    var cur = new Date(todayISO() + "T00:00:00");
+    if (!set[fmt(cur)]) { cur.setDate(cur.getDate() - 1); if (!set[fmt(cur)]) return 0; }
+    var streak = 0;
+    while (set[fmt(cur)]) { streak++; cur.setDate(cur.getDate() - 1); }
+    return streak;
+  }
+  function tally(pid) {
+    var t = { e: 0, m: 0, h: 0, pts: 0, total: 0 };
+    solves.forEach(function (s) { if (s.player_id !== pid) return; t[s.diff]++; t.pts += POINTS[s.diff]; t.total++; });
+    return t;
+  }
+  function niceDate(iso) {
+    var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var today = new Date(todayISO() + "T00:00:00"), diff = Math.round((today - d) / 86400000);
+    if (diff === 0) return "today";
+    if (diff === 1) return "yesterday";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  // ---- render ----
+  function render() { rebuildLookups(); renderBoard(); renderCrew(); renderFilter(); renderWho(); renderRows(); }
+
+  function rebuildLookups() {
+    colorIndex = {}; byId = {};
+    players.forEach(function (p, i) { colorIndex[p.id] = i; });
+    players.forEach(function (p) { byId[p.id] = { name: p.name, color: pColor(p.id) }; });
+  }
+  function renderCrew() {
+    document.getElementById("crew").textContent = players.length + (players.length === 1 ? " grinding" : " grinding");
+  }
+
+  function renderBoard() {
+    var board = document.getElementById("board");
+    var ae = document.activeElement;
+    if (ae && ae.classList && ae.classList.contains("nameinput")) { boardDirty = true; return; }
+    boardDirty = false;
+
+    if (!players.length) {
+      board.innerHTML = '<div class="emptyboard">No one\'s in <b>' + esc(room) + '</b> yet — add people below to start the grind. 👇</div>';
+      return;
+    }
+    var ranked = players.map(function (p) { var t = tally(p.id); return { p: p, t: t, streak: currentStreak(p.id) }; })
+      .sort(function (a, b) { return b.t.pts - a.t.pts || b.t.total - a.t.total || a.p.name.localeCompare(b.p.name); });
+    var topPts = ranked[0].t.pts;
+
+    board.innerHTML = ranked.map(function (row, i) {
+      return cardHTML(row.p, row.t, row.streak, i + 1, topPts > 0 && row.t.pts === topPts);
+    }).join("");
+
+    Array.prototype.forEach.call(board.querySelectorAll(".nameinput"), function (inp) {
+      inp.addEventListener("change", function () {
+        var id = inp.dataset.id, name = inp.value.trim();
+        if (!name) { inp.value = (byId[id] && byId[id].name) || ""; return; }
+        renamePlayer(id, name);
+      });
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") inp.blur(); });
+      inp.addEventListener("blur", function () { if (boardDirty) renderBoard(); });
+    });
+    Array.prototype.forEach.call(board.querySelectorAll(".removep"), function (b) {
+      b.addEventListener("click", function () { removePlayer(b.dataset.id); });
+    });
+  }
+
+  function cardHTML(p, t, streak, rank, leading) {
+    var color = pColor(p.id);
+    var seg = t.total ? pctBar("e", t.e, t.total) + pctBar("m", t.m, t.total) + pctBar("h", t.h, t.total) : "";
+    return '<div class="pcard' + (leading ? " leading" : "") + '" style="--pc:' + color + '">' +
+        '<button class="removep" data-id="' + p.id + '" title="Remove from room" aria-label="Remove ' + esc(p.name) + '">✕</button>' +
+        '<div class="pname"><span class="rk">' + rank + '</span><span class="dot"></span>' +
+          '<input class="nameinput" data-id="' + p.id + '" value="' + esc(p.name) + '" aria-label="Name" maxlength="24">' +
+          (leading ? '<span class="crown" title="In the lead">👑</span>' : '') + '</div>' +
+        '<div class="statrow">' +
+          '<div class="stat"><div class="k">' + t.pts + '<span class="u">pts</span></div><div class="l">Score</div></div>' +
+          '<div class="stat"><div class="k">' + t.total + '</div><div class="l">Solved</div></div>' +
+          '<div class="stat"><div class="k streak' + (streak > 0 ? " hot" : "") + '">' + (streak > 0 ? "🔥" : "") + streak + '</div><div class="l">Streak</div></div>' +
+        '</div>' +
+        '<div class="breakdown"><div class="bar">' + seg + '</div><div class="blabels">' +
+          lbl("e", "Easy", t.e) + lbl("m", "Med", t.m) + lbl("h", "Hard", t.h) + '</div></div>' +
+      '</div>';
+  }
+  function pctBar(cls, n, total) { var w = (n / total) * 100; return w > 0 ? '<i class="' + cls + '" style="width:' + w + '%"></i>' : ""; }
+  function lbl(cls, name, n) {
+    var c = cls === "e" ? "var(--easy)" : cls === "m" ? "var(--medium)" : "var(--hard)";
+    return '<span><span class="sw" style="background:' + c + '"></span>' + name + ' <b>' + n + '</b></span>';
+  }
+
+  function renderFilter() {
+    var el = document.getElementById("filter");
+    var html = '<button data-f="all" class="' + (filter === "all" ? "on" : "") + '">All</button>';
+    players.forEach(function (p) {
+      html += '<button data-f="' + p.id + '" class="' + (String(filter) === String(p.id) ? "on" : "") + '">' +
+        '<span class="pdot" style="background:' + pColor(p.id) + '"></span>' + esc(p.name) + '</button>';
+    });
+    el.innerHTML = html;
+  }
+
+  function renderWho() {
+    var sel = document.getElementById("f-who"), btn = document.getElementById("addBtn");
+    if (!players.length) {
+      sel.innerHTML = '<option value="">— add people first —</option>';
+      sel.disabled = true; btn.disabled = true; return;
+    }
+    sel.disabled = false; btn.disabled = false;
+    var prev = sel.value, saved = "";
+    try { saved = localStorage.getItem("grind.me." + room) || ""; } catch (e) {}
+    var exists = function (v) { return v && players.some(function (p) { return String(p.id) === String(v); }); };
+    sel.innerHTML = players.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join("");
+    sel.value = exists(prev) ? prev : (exists(saved) ? saved : String(players[0].id));
+  }
+
+  function renderRows() {
+    var tbody = document.getElementById("rows");
+    var list = solves.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id; });
+    if (filter !== "all") list = list.filter(function (s) { return String(s.player_id) === String(filter); });
+    document.getElementById("count").textContent = solves.length;
+    var empty = document.getElementById("empty");
+
+    if (!list.length) {
+      tbody.innerHTML = "";
+      empty.hidden = solves.length !== 0;
+      if (solves.length && filter !== "all") {
+        var nm = byId[filter] ? byId[filter].name : "them";
+        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:32px">No solves logged for ' + esc(nm) + ' yet.</td></tr>';
+        empty.hidden = true;
+      }
+      return;
+    }
+    empty.hidden = true;
+    tbody.innerHTML = list.map(function (s) {
+      var who = byId[s.player_id] || { name: "—", color: "var(--faint)" };
+      var num = s.num ? '<span class="ptopic"> #' + esc(s.num) + '</span>' : "";
+      var topic = s.topic ? '<div class="ptopic">' + esc(s.topic) + '</div>' : "";
+      return '<tr>' +
+        '<td><span class="ptitle">' + esc(s.title) + '</span>' + num + topic + '</td>' +
+        '<td><span class="pill ' + s.diff + '">' + DIFF_NAME[s.diff] + '</span></td>' +
+        '<td><span class="who"><span class="d" style="background:' + who.color + '"></span>' + esc(who.name) + '</span></td>' +
+        '<td class="date">' + niceDate(s.date) + '</td>' +
+        '<td class="pts">+' + POINTS[s.diff] + '</td>' +
+        '<td style="text-align:right"><button class="del" data-id="' + s.id + '" title="Delete" aria-label="Delete">✕</button></td></tr>';
+    }).join("");
+    Array.prototype.forEach.call(tbody.querySelectorAll(".del"), function (b) {
+      b.addEventListener("click", function () { deleteSolve(b.dataset.id); });
+    });
+  }
+
+  // ---- sync status ----
+  function setSync(kind, text) {
+    var el = document.getElementById("syncStatus");
+    el.className = kind;
+    el.innerHTML = '<span class="sdot"></span>' + text;
+    var chip = document.getElementById("copyRoom");
+    chip.classList.remove("live", "warn", "off");
+    if (kind) chip.classList.add(kind);
+  }
+
+  // ---- data access ----
+  function mapSolve(r) { return { id: r.id, player_id: r.player_id, title: r.title, num: r.num, topic: r.topic, diff: r.diff, date: r.solved_on }; }
+  function scheduleRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 150); }
+
+  function refresh() {
+    if (!db || !room) return;
+    Promise.all([
+      db.from(TBL_P).select("*").eq("room", room).order("id", { ascending: true }),
+      db.from(TBL_S).select("*").eq("room", room)
+    ]).then(function (res) {
+      if (res[0].error) throw res[0].error;
+      if (res[1].error) throw res[1].error;
+      players = (res[0].data || []).map(function (r) { return { id: r.id, name: r.name }; });
+      solves = (res[1].data || []).map(mapSolve);
+      render();
+      if (channel && channel.state === "joined") setSync("live", "Live · changes sync to everyone");
+    }).catch(function (err) {
+      console.error(err);
+      setSync("off", "Offline — retrying…");
+      clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 3000);
+    });
+  }
+
+  function subscribe() {
+    if (channel) db.removeChannel(channel);
+    channel = db.channel("room-" + room)
+      .on("postgres_changes", { event: "*", schema: "public", table: TBL_S, filter: "room=eq." + room }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: TBL_P, filter: "room=eq." + room }, scheduleRefresh)
+      .subscribe(function (status) {
+        if (status === "SUBSCRIBED") setSync("live", "Live · changes sync to everyone");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setSync("off", "Reconnecting…");
+        else setSync("warn", "Connecting…");
+      });
+  }
+
+  function addSolve(rec) {
+    db.from(TBL_S).insert({ room: room, player_id: rec.player_id, title: rec.title, num: rec.num, topic: rec.topic, diff: rec.diff, solved_on: todayISO() })
+      .then(function (r) { if (r.error) { console.error(r.error); alert("Couldn't save that solve — check your connection."); } else scheduleRefresh(); });
+  }
+  function deleteSolve(id) {
+    solves = solves.filter(function (s) { return String(s.id) !== String(id); }); render();
+    db.from(TBL_S).delete().eq("room", room).eq("id", id).then(function (r) { if (r.error) console.error(r.error); scheduleRefresh(); });
+  }
+  function renamePlayer(id, name) {
+    players = players.map(function (p) { return String(p.id) === String(id) ? { id: p.id, name: name } : p; }); render();
+    db.from(TBL_P).update({ name: name }).eq("room", room).eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
+  }
+  function addPlayer(name) {
+    db.from(TBL_P).insert({ room: room, name: name }).then(function (r) {
+      if (r.error) { console.error(r.error); alert("Couldn't add — check your connection."); }
+      else { document.getElementById("playerName").value = ""; scheduleRefresh(); }
+    });
+  }
+  function removePlayer(id) {
+    var who = byId[id] ? byId[id].name : "this person";
+    if (!confirm("Remove " + who + " and all their solves from room “" + room + "”? This can't be undone.")) return;
+    players = players.filter(function (p) { return String(p.id) !== String(id); });
+    solves = solves.filter(function (s) { return String(s.player_id) !== String(id); }); render();
+    db.from(TBL_S).delete().eq("room", room).eq("player_id", id).then(function () {
+      db.from(TBL_P).delete().eq("room", room).eq("id", id).then(scheduleRefresh);
+    });
+  }
+  function clearSolves() {
+    if (!solves.length) return;
+    if (!confirm("Clear ALL solves for room “" + room + "”? Keeps the people, wipes their solves. Can't be undone (Export first to keep a copy).")) return;
+    db.from(TBL_S).delete().eq("room", room).then(function (r) { if (r.error) { console.error(r.error); alert("Couldn't clear — check your connection."); } else scheduleRefresh(); });
+  }
+
+  // ---- room join / leave ----
+  function normalizeCode(s) { return String(s || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40); }
+
+  function enterRoom(code) {
+    room = normalizeCode(code);
+    if (!room) return;
+    try { localStorage.setItem("grind.room", room); } catch (e) {}
+    document.getElementById("gate").hidden = true;
+    document.getElementById("app").hidden = false;
+    document.getElementById("roomLabel").textContent = room;
+    document.getElementById("roomCode").textContent = room;
+    setSync("warn", "Connecting…");
+    subscribe();
+    refresh();
+  }
+  function leaveRoom() {
+    try { localStorage.removeItem("grind.room"); } catch (e) {}
+    if (channel) { db.removeChannel(channel); channel = null; }
+    room = null; players = []; solves = []; filter = "all";
+    document.getElementById("app").hidden = true;
+    document.getElementById("gate").hidden = false;
+    showGate();
+  }
+
+  // ---- gate ----
+  function showGate() {
+    var card = document.getElementById("gateCard");
+    if (!configOK) {
+      card.innerHTML = '<h1>Almost there</h1><p class="lead">One-time setup to connect everyone.</p>' +
+        '<div class="notice"><b>Add your Supabase keys.</b> Open <code>index.html</code>, find the <code>CONFIG</code> block near the top of the script, and paste your Project URL + anon key.</div>' +
+        '<p class="hint">Full walkthrough is in <code>SETUP.md</code> next to this file. ~2 minutes.</p>';
+      return;
+    }
+    var saved = "";
+    try { saved = localStorage.getItem("grind.room") || ""; } catch (e) {}
+    card.innerHTML = '<h1>The Grind</h1><p class="lead">Enter a room code your group shares. Same code = same board.</p>' +
+      '<form id="joinForm"><label class="field"><span>Room code</span>' +
+      '<input id="roomInput" placeholder="e.g. squad-grind" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(saved) + '"></label>' +
+      '<button class="go primary" type="submit">Enter the grind →</button></form>' +
+      '<p class="hint">Make up any code and share it with the group. Anyone with the code can see this board, so pick something only your crew would guess.</p>';
+    document.getElementById("joinForm").addEventListener("submit", function (e) { e.preventDefault(); enterRoom(document.getElementById("roomInput").value); });
+    document.getElementById("roomInput").focus();
+  }
+
+  // ---- static wiring ----
+  document.getElementById("addForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!players.length) return;
+    var title = document.getElementById("f-title").value.trim();
+    if (!title) return;
+    addSolve({
+      player_id: +document.getElementById("f-who").value,
+      title: title,
+      num: document.getElementById("f-num").value.trim(),
+      topic: document.getElementById("f-topic").value.trim(),
+      diff: document.getElementById("f-diff").value
+    });
+    this.reset();
+    document.getElementById("f-diff").value = "m";
+    renderWho();
+    document.getElementById("f-title").focus();
+  });
+  document.getElementById("addPlayerForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = document.getElementById("playerName").value.trim();
+    if (name) addPlayer(name);
+  });
+  document.getElementById("f-who").addEventListener("change", function () {
+    try { localStorage.setItem("grind.me." + room, this.value); } catch (e) {}
+  });
+  document.getElementById("filter").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    filter = b.dataset.f; renderFilter(); renderRows();
+  });
+  document.getElementById("copyRoom").addEventListener("click", function () {
+    var codeEl = document.getElementById("roomCode");
+    var done = function () { codeEl.textContent = "copied!"; setTimeout(function () { codeEl.textContent = room; }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(room).then(done, function () { alert("Room code: " + room); });
+    else alert("Room code: " + room);
+  });
+  document.getElementById("export").addEventListener("click", function () {
+    var data = JSON.stringify({ room: room, players: players, solves: solves }, null, 2);
+    var blob = new Blob([data], { type: "application/json" }), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "grind-" + room + "-" + todayISO() + ".json"; a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+  document.getElementById("clear").addEventListener("click", clearSolves);
+  document.getElementById("leave").addEventListener("click", leaveRoom);
+
+  // ---- boot ----
+  function boot() {
+    if (configOK) {
+      db = window.supabase.createClient(CONFIG.url, CONFIG.anonKey);
+      var saved = "";
+      try { saved = localStorage.getItem("grind.room") || ""; } catch (e) {}
+      if (saved) { enterRoom(saved); return; }
+    }
+    showGate();
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

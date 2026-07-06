@@ -1,0 +1,5 @@
+# Exported board snapshots
+grind-*.json
+
+# macOS
+.DS_Store
