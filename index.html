@@ -143,6 +143,17 @@
   td.pts { font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
   .del { border:none; background:transparent; color:var(--faint); cursor:pointer; padding:4px 6px; border-radius:6px; font-size:.95rem; line-height:1; }
   .del:hover { color:var(--hard); background:var(--hard-soft); }
+  .edit { border:none; background:transparent; color:var(--faint); cursor:pointer; padding:4px 6px; border-radius:6px; font-size:.9rem; line-height:1; margin-right:1px; }
+  .edit:hover { color:var(--p1); background:var(--p1-soft); }
+  td.editcell { padding:0; }
+  .editrow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .editrow .full { flex:1 1 100%; }
+  .editrow .e-num { flex:0 0 74px; }
+  .editrow .e-topic { flex:2 1 150px; }
+  .editrow .e-diff { flex:0 0 104px; }
+  .editrow .e-who { flex:0 0 132px; }
+  .editrow .e-date { flex:0 0 162px; color-scheme:light dark; }
+  .editrow .ebtns { flex:1 1 auto; display:flex; gap:8px; justify-content:flex-end; }
   .empty { padding:46px 20px; text-align:center; color:var(--muted); }
   .empty .big { font-size:1.6rem; margin-bottom:8px; }
   .empty p { margin:4px 0; font-size:.88rem; }
@@ -174,6 +185,93 @@
     .addrow { grid-template-columns:1fr 1fr; } .addrow .full { grid-column:1 / -1; }
   }
   @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+
+  /* ============ insights ============ */
+  section.insights { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-top:22px; }
+  .ins-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .ins-head h2 { margin:0; font-size:.95rem; font-weight:640; letter-spacing:-.01em; }
+  .ins-head h2 span { color:var(--faint); font-family:var(--mono); font-weight:500; margin-left:6px; font-size:.82rem; }
+  .ins-pick { display:inline-flex; align-items:center; gap:8px; }
+  .ins-pick label { font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:600; }
+  .ins-pick .swatch { width:9px; height:9px; border-radius:50%; background:var(--pc,var(--p1)); flex:none; }
+  .ins-pick select { font-family:var(--sans); font-size:.82rem; font-weight:550; color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:8px; padding:7px 9px; max-width:200px; }
+  .ins-pick select:focus { outline:none; border-color:var(--p1); box-shadow:0 0 0 3px var(--p1-soft); }
+
+  .ins-body { padding:18px 16px 20px; display:flex; flex-direction:column; gap:22px; }
+  .ins-empty { padding:34px 20px; text-align:center; color:var(--muted); font-size:.9rem; }
+  .ins-empty .big { font-size:1.5rem; margin-bottom:8px; }
+  .ins-empty b { color:var(--ink); }
+
+  .panel h3 { margin:0 0 12px; font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:8px; }
+  .panel h3 .hint { text-transform:none; letter-spacing:0; color:var(--faint); font-weight:500; font-family:var(--mono); font-size:.72rem; }
+  .ins-cols { display:grid; grid-template-columns:minmax(240px,300px) 1fr; gap:22px; align-items:start; }
+  @media (max-width:720px) { .ins-cols { grid-template-columns:1fr; } }
+
+  /* stat tiles */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:10px; }
+  .tile { background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 13px; }
+  .tile .tk { font-family:var(--mono); font-size:1.5rem; font-weight:600; letter-spacing:-.02em; line-height:1; font-variant-numeric:tabular-nums; color:var(--ink); display:flex; align-items:baseline; gap:3px; }
+  .tile .tk .u { font-size:.62rem; color:var(--muted); font-weight:500; font-family:var(--mono); letter-spacing:0; }
+  .tile .tk.accent { color:var(--pc,var(--p1)); }
+  .tile .tl { text-transform:uppercase; letter-spacing:.06em; font-size:.58rem; color:var(--muted); margin-top:9px; font-weight:600; }
+
+  /* contribution heatmap */
+  .heat { --cell:13px; --gap:3px; --heat-empty:color-mix(in oklab, var(--ink) 7%, var(--surface)); }
+  .heat-scroll { overflow-x:auto; padding-bottom:2px; }
+  .heat-plot { display:flex; gap:7px; width:max-content; }
+  .heat-wd { display:grid; grid-template-rows:repeat(7,var(--cell)); gap:var(--gap); margin-top:calc(var(--cell) + 5px); }
+  .heat-wd span { font-family:var(--mono); font-size:.62rem; color:var(--faint); line-height:var(--cell); height:var(--cell); }
+  .heat-cal { display:flex; flex-direction:column; gap:3px; }
+  .heat-months { display:grid; grid-auto-flow:column; gap:var(--gap); height:14px; }
+  .heat-months span { font-family:var(--mono); font-size:.62rem; color:var(--muted); white-space:nowrap; align-self:end; }
+  .heat-cols { display:grid; grid-template-rows:repeat(7,var(--cell)); grid-auto-flow:column; grid-auto-columns:var(--cell); gap:var(--gap); }
+  .heat-cell { width:var(--cell); height:var(--cell); border-radius:3px; background:var(--heat-empty); transition:transform .08s; }
+  .heat-cell.l1 { background:color-mix(in oklab, var(--pc) 26%, var(--surface)); }
+  .heat-cell.l2 { background:color-mix(in oklab, var(--pc) 50%, var(--surface)); }
+  .heat-cell.l3 { background:color-mix(in oklab, var(--pc) 74%, var(--surface)); }
+  .heat-cell.l4 { background:var(--pc); }
+  .heat-cell.void { visibility:hidden; }
+  .heat-cell:not(.void):hover, .heat-cell:not(.void):focus-visible { transform:scale(1.32); outline:none; }
+  .heat-leg { display:flex; align-items:center; gap:6px; margin-top:12px; font-family:var(--mono); font-size:.68rem; color:var(--muted); }
+  .heat-leg .cells { display:inline-flex; gap:3px; }
+  .heat-leg i { width:var(--cell); height:var(--cell); border-radius:3px; display:inline-block; }
+
+  /* topic breakdown */
+  .topics { display:flex; flex-direction:column; gap:9px; }
+  .trow { display:grid; grid-template-columns:1fr; gap:5px; }
+  .trow .tmeta { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .trow .tname { font-size:.82rem; color:var(--ink); font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .trow .tnum { font-family:var(--mono); font-size:.74rem; color:var(--muted); font-variant-numeric:tabular-nums; flex:none; }
+  .trow .tnum b { color:var(--ink); font-weight:600; }
+  .ttrack { height:9px; border-radius:6px; background:var(--line); overflow:hidden; }
+  .ttrack i { display:block; height:100%; border-radius:6px; background:var(--pc,var(--p1)); min-width:3px; transition:width .2s; }
+  .topics-empty { color:var(--faint); font-size:.82rem; font-style:italic; padding:6px 0; }
+
+  /* race (cumulative over time) */
+  .race-top { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .race-wrap { position:relative; }
+  .race-svg { width:100%; height:auto; display:block; overflow:visible; touch-action:pan-y; }
+  .race-grid line { stroke:var(--line); stroke-width:1; }
+  .race-axis text { fill:var(--muted); font-family:var(--mono); font-size:9px; }
+  .race-line { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transition:opacity .12s; }
+  .race-line.dim { opacity:.28; }
+  .race-dot { stroke:var(--surface); stroke-width:2; }
+  .race-cross { stroke:var(--line-strong); stroke-width:1; pointer-events:none; }
+  .race-hover { pointer-events:none; }
+  .race-hit { fill:transparent; }
+  .race-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:12px; }
+  .rl-item { display:inline-flex; align-items:center; gap:6px; font-size:.78rem; color:var(--muted); cursor:pointer; background:none; border:none; padding:0; font-family:var(--sans); }
+  .rl-item .rl-key { width:14px; height:2px; border-radius:2px; flex:none; }
+  .rl-item.sel { color:var(--ink); font-weight:600; }
+
+  /* shared viz tooltip */
+  .viz-tip { position:fixed; z-index:50; pointer-events:none; background:var(--surface); border:1px solid var(--line-strong); border-radius:8px; box-shadow:var(--shadow); padding:8px 10px; font-size:.76rem; color:var(--ink); max-width:220px; opacity:0; transform:translateY(2px); transition:opacity .1s; }
+  .viz-tip.show { opacity:1; transform:none; }
+  .viz-tip .tt-h { font-family:var(--mono); font-size:.7rem; color:var(--muted); margin-bottom:5px; }
+  .viz-tip .tt-r { display:flex; align-items:center; gap:7px; line-height:1.5; }
+  .viz-tip .tt-r .k { width:12px; height:2px; border-radius:2px; flex:none; }
+  .viz-tip .tt-r .v { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600; }
+  .viz-tip .tt-r .n { color:var(--muted); }
 </style>
 </head>
 <body>
@@ -235,6 +333,18 @@
     </div>
   </section>
 
+  <section class="insights" id="insights" hidden>
+    <div class="ins-head">
+      <h2>Insights <span id="insSub"></span></h2>
+      <div class="ins-pick">
+        <span class="swatch" id="insSwatch"></span>
+        <label for="insWho">Showing</label>
+        <select id="insWho" aria-label="Choose whose insights to show"></select>
+      </div>
+    </div>
+    <div class="ins-body" id="insBody"></div>
+  </section>
+
   <div class="foot">
     <div class="rules">Points: <b>Easy 1</b> · <b>Medium 3</b> · <b>Hard 5</b> &nbsp;·&nbsp; 🔥 = current daily streak</div>
     <div id="syncStatus"><span class="sdot"></span>Connecting…</div>
@@ -266,6 +376,11 @@
   var colorIndex = {};// player_id -> stable color slot
   var byId = {};      // player_id -> {name, color}
   var filter = "all";
+  var editingId = null;     // id of the log entry currently being edited inline
+  var insPid = null;        // participant selected in the Insights section
+  var raceMetric = "pts";   // "pts" | "solves" for the cumulative race chart
+  var lastRace = null;      // geometry cache for the race chart's hover layer
+  var tipEl = null;         // shared floating tooltip element
   var channel = null, refreshTimer = null, boardDirty = false;
 
   var configOK = CONFIG.url.indexOf("YOUR-PROJECT") === -1 && CONFIG.anonKey.indexOf("YOUR-PUBLIC") === -1;
@@ -301,7 +416,7 @@
   }
 
   // ---- render ----
-  function render() { rebuildLookups(); renderBoard(); renderCrew(); renderFilter(); renderWho(); renderRows(); }
+  function render() { rebuildLookups(); renderBoard(); renderCrew(); renderFilter(); renderWho(); renderRows(); renderInsights(); }
 
   function rebuildLookups() {
     colorIndex = {}; byId = {};
@@ -393,6 +508,9 @@
 
   function renderRows() {
     var tbody = document.getElementById("rows");
+    if (editingId != null && !solves.some(function (s) { return String(s.id) === String(editingId); })) editingId = null;
+    var ae = document.activeElement;
+    if (editingId != null && ae && ae.closest && ae.closest('tr[data-edit="1"]')) return; // keep an open editor from being clobbered by a background refresh
     var list = solves.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id; });
     if (filter !== "all") list = list.filter(function (s) { return String(s.player_id) === String(filter); });
     document.getElementById("count").textContent = solves.length;
@@ -410,6 +528,7 @@
     }
     empty.hidden = true;
     tbody.innerHTML = list.map(function (s) {
+      if (String(s.id) === String(editingId)) return editRowHTML(s);
       var who = byId[s.player_id] || { name: "—", color: "var(--faint)" };
       var num = s.num ? '<span class="ptopic"> #' + esc(s.num) + '</span>' : "";
       var topic = s.topic ? '<div class="ptopic">' + esc(s.topic) + '</div>' : "";
@@ -419,11 +538,330 @@
         '<td><span class="who"><span class="d" style="background:' + who.color + '"></span>' + esc(who.name) + '</span></td>' +
         '<td class="date">' + niceDate(s.date) + '</td>' +
         '<td class="pts">+' + POINTS[s.diff] + '</td>' +
-        '<td style="text-align:right"><button class="del" data-id="' + s.id + '" title="Delete" aria-label="Delete">✕</button></td></tr>';
+        '<td style="text-align:right"><button class="edit" data-id="' + s.id + '" title="Edit" aria-label="Edit">✎</button>' +
+          '<button class="del" data-id="' + s.id + '" title="Delete" aria-label="Delete">✕</button></td></tr>';
     }).join("");
     Array.prototype.forEach.call(tbody.querySelectorAll(".del"), function (b) {
       b.addEventListener("click", function () { deleteSolve(b.dataset.id); });
     });
+    Array.prototype.forEach.call(tbody.querySelectorAll(".edit"), function (b) {
+      b.addEventListener("click", function () { editingId = b.dataset.id; render(); });
+    });
+    var ef = tbody.querySelector("form.editrow");
+    if (ef) {
+      ef.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var t = ef.querySelector(".e-title").value.trim();
+        if (!t) { ef.querySelector(".e-title").focus(); return; }
+        updateSolve(ef.dataset.id, {
+          player_id: +ef.querySelector(".e-who").value,
+          title: t,
+          num: ef.querySelector(".e-num").value.trim(),
+          topic: ef.querySelector(".e-topic").value.trim(),
+          diff: ef.querySelector(".e-diff").value,
+          date: ef.querySelector(".e-date").value || todayISO()
+        });
+      });
+      ef.querySelector(".ecancel").addEventListener("click", function () { editingId = null; render(); });
+      var ti = ef.querySelector(".e-title"); if (ti) { ti.focus(); ti.setSelectionRange(ti.value.length, ti.value.length); }
+    }
+  }
+
+  function editRowHTML(s) {
+    var whoOpts = players.map(function (p) { return '<option value="' + p.id + '"' + (String(p.id) === String(s.player_id) ? " selected" : "") + '>' + esc(p.name) + '</option>'; }).join("");
+    var dOpt = function (v, l) { return '<option value="' + v + '"' + (s.diff === v ? " selected" : "") + '>' + l + '</option>'; };
+    return '<tr data-edit="1"><td class="editcell" colspan="6">' +
+      '<form class="addrow editrow" data-id="' + s.id + '">' +
+        '<input class="full e-title" value="' + esc(s.title) + '" placeholder="Problem name" maxlength="120" required>' +
+        '<input class="e-num" value="' + esc(s.num || "") + '" placeholder="#" inputmode="numeric" aria-label="Problem number">' +
+        '<input class="e-topic" value="' + esc(s.topic || "") + '" placeholder="Topic" aria-label="Topic">' +
+        '<select class="e-diff" aria-label="Difficulty">' + dOpt("e", "Easy") + dOpt("m", "Medium") + dOpt("h", "Hard") + '</select>' +
+        '<select class="e-who" aria-label="Who solved it">' + whoOpts + '</select>' +
+        '<input type="date" class="e-date" value="' + esc(s.date) + '" max="' + todayISO() + '" aria-label="Date solved">' +
+        '<div class="ebtns"><button type="button" class="ecancel">Cancel</button><button type="submit" class="primary esave">Save</button></div>' +
+      '</form></td></tr>';
+  }
+  function updateSolve(id, p) {
+    solves = solves.map(function (s) {
+      return String(s.id) === String(id) ? { id: s.id, player_id: p.player_id, title: p.title, num: p.num, topic: p.topic, diff: p.diff, date: p.date } : s;
+    });
+    editingId = null; render();
+    db.from(TBL_S).update({ player_id: p.player_id, title: p.title, num: p.num, topic: p.topic, diff: p.diff, solved_on: p.date })
+      .eq("room", room).eq("id", id)
+      .then(function (r) { if (r.error) { console.error(r.error); alert("Couldn't save changes — check your connection."); } scheduleRefresh(); });
+  }
+
+  // ---- insights: data helpers ----
+  var WD_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MON_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function solvesFor(pid) { return solves.filter(function (s) { return String(s.player_id) === String(pid); }); }
+  function dayCounts(pid) { var m = {}; solvesFor(pid).forEach(function (s) { m[s.date] = (m[s.date] || 0) + 1; }); return m; }
+  function daysBetween(aISO, bISO) { return Math.round((new Date(bISO + "T00:00:00") - new Date(aISO + "T00:00:00")) / 86400000); }
+  function niceShort(iso) { var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
+  function niceFull(iso) { var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]); return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
+
+  function longestStreak(pid) {
+    var days = Object.keys(dayCounts(pid)).sort(); // ISO strings sort chronologically
+    if (!days.length) return 0;
+    var best = 1, run = 1;
+    for (var i = 1; i < days.length; i++) { run = daysBetween(days[i - 1], days[i]) === 1 ? run + 1 : 1; if (run > best) best = run; }
+    return best;
+  }
+  function insStats(pid) {
+    var dc = dayCounts(pid), days = Object.keys(dc).sort(), t = tally(pid);
+    var active = days.length, first = days[0] || todayISO();
+    var span = daysBetween(first, todayISO()) + 1;
+    var wd = [0, 0, 0, 0, 0, 0, 0];
+    solvesFor(pid).forEach(function (s) { wd[new Date(s.date + "T00:00:00").getDay()]++; });
+    var bi = -1, bn = 0; wd.forEach(function (n, i) { if (n > bn) { bn = n; bi = i; } });
+    return {
+      cur: currentStreak(pid), longest: longestStreak(pid), active: active, span: span,
+      rate: span ? Math.round(active / span * 100) : 0,
+      perActive: active ? Math.round(t.total / active * 10) / 10 : 0,
+      best: bi >= 0 ? WD_SHORT[bi] : "—", total: t.total, pts: t.pts
+    };
+  }
+  function topicTally(pid) {
+    var m = {};
+    solvesFor(pid).forEach(function (s) { var k = (s.topic || "").trim(); if (k) m[k] = (m[k] || 0) + 1; });
+    return Object.keys(m).map(function (k) { return { topic: k, n: m[k] }; })
+      .sort(function (a, b) { return b.n - a.n || a.topic.localeCompare(b.topic); });
+  }
+  function raceSeries(metric) {
+    var val = metric === "pts" ? function (s) { return POINTS[s.diff]; } : function () { return 1; };
+    var dset = {}; solves.forEach(function (s) { dset[s.date] = true; });
+    var dl = Object.keys(dset).sort();
+    if (!dl.length) return { dates: [], series: [], max: 0 };
+    var today = todayISO();
+    if (dl[dl.length - 1] < today) dl.push(today); // extend flat to today
+    var series = players.map(function (p) {
+      var inc = {};
+      solves.forEach(function (s) { if (String(s.player_id) === String(p.id)) inc[s.date] = (inc[s.date] || 0) + val(s); });
+      var cum = 0, pts = dl.map(function (d) { cum += (inc[d] || 0); return cum; });
+      return { id: p.id, name: p.name, color: pColor(p.id), pts: pts };
+    });
+    var max = 0; series.forEach(function (se) { se.pts.forEach(function (v) { if (v > max) max = v; }); });
+    return { dates: dl, series: series, max: max };
+  }
+  function niceStep(max) {
+    max = Math.max(1, max);
+    var target = max / 4, mag = Math.pow(10, Math.floor(Math.log(target) / Math.LN10));
+    var norm = target / mag, step = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+    step = Math.max(1, Math.round(step * mag));
+    while (max / step > 6) step *= 2;
+    return step;
+  }
+
+  // ---- insights: shared tooltip ----
+  function tip() { if (!tipEl) { tipEl = document.createElement("div"); tipEl.className = "viz-tip"; document.body.appendChild(tipEl); } return tipEl; }
+  function showTipAt(html, x, y) {
+    var t = tip(); t.innerHTML = html; t.classList.add("show");
+    var r = t.getBoundingClientRect(), left = x + 14, top = y + 14;
+    if (left + r.width > window.innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > window.innerHeight - 8) top = y - r.height - 14;
+    t.style.left = Math.max(8, left) + "px"; t.style.top = Math.max(8, top) + "px";
+  }
+  function hideTip() { if (tipEl) tipEl.classList.remove("show"); }
+  function attachTips(root) {
+    if (!root) return;
+    root.addEventListener("mousemove", function (e) {
+      var el = e.target.closest("[data-tip]"); if (!el) { hideTip(); return; }
+      showTipAt('<div class="tt-h">' + esc(el.dataset.tip) + '</div>', e.clientX, e.clientY);
+    });
+    root.addEventListener("mouseleave", hideTip);
+    root.addEventListener("focusin", function (e) {
+      var el = e.target.closest("[data-tip]"); if (!el) return;
+      var r = el.getBoundingClientRect(); showTipAt('<div class="tt-h">' + esc(el.dataset.tip) + '</div>', r.left + r.width / 2, r.top);
+    });
+    root.addEventListener("focusout", hideTip);
+  }
+
+  // ---- insights: render ----
+  function renderInsights() {
+    var sec = document.getElementById("insights"), body = document.getElementById("insBody");
+    if (!players.length) { sec.hidden = true; hideTip(); return; }
+    sec.hidden = false;
+
+    var has = function (v) { return v && players.some(function (p) { return String(p.id) === String(v); }); };
+    if (!has(insPid)) {
+      var savedIns = "", me = "";
+      try { savedIns = localStorage.getItem("grind.ins." + room) || ""; me = localStorage.getItem("grind.me." + room) || ""; } catch (e) {}
+      insPid = has(savedIns) ? savedIns : has(me) ? me : String(players[0].id);
+    }
+    renderInsWho();
+
+    var color = pColor(insPid), nm = byId[insPid] ? byId[insPid].name : "";
+    sec.style.setProperty("--pc", color);
+    document.getElementById("insSwatch").style.background = color;
+    document.getElementById("insSub").textContent = "· " + nm;
+
+    if (!solvesFor(insPid).length) {
+      body.innerHTML = '<div class="ins-empty"><div class="big">🌱</div><p><b>' + esc(nm) + '</b> hasn\'t logged a solve yet.</p>' +
+        '<p>Once they start, their consistency shows up here.</p></div>';
+      return;
+    }
+    body.innerHTML = panelTiles() + panelHeatmap() + '<div class="ins-cols">' + panelTopics() + panelRace() + '</div>';
+    attachTips(document.querySelector("#insBody .heat-cols"));
+    attachTips(document.querySelector("#insBody .topics"));
+    wireRace();
+  }
+  function renderInsWho() {
+    var sel = document.getElementById("insWho");
+    sel.innerHTML = players.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join("");
+    sel.value = String(insPid);
+  }
+  function tileHTML(v, u, l, accent) {
+    return '<div class="tile"><div class="tk' + (accent ? " accent" : "") + '">' + v +
+      (u ? '<span class="u">' + u + '</span>' : "") + '</div><div class="tl">' + l + '</div></div>';
+  }
+  function panelTiles() {
+    var s = insStats(insPid);
+    return '<div class="panel"><h3>Consistency <span class="hint">' + s.active + ' active day' + (s.active === 1 ? "" : "s") +
+        ' of ' + s.span + '</span></h3><div class="tiles">' +
+      tileHTML((s.cur > 0 ? "🔥" : "") + s.cur, "", "Current streak", s.cur > 0) +
+      tileHTML(s.longest, s.longest === 1 ? "day" : "days", "Longest streak") +
+      tileHTML(s.active, s.active === 1 ? "day" : "days", "Active days") +
+      tileHTML(s.rate, "%", "Consistency", true) +
+      tileHTML(s.perActive, "", "Solves / active day") +
+      tileHTML(s.best, "", "Best day") +
+      '</div></div>';
+  }
+  function panelHeatmap() {
+    var dc = dayCounts(insPid), days = Object.keys(dc).sort();
+    var firstISO = days[0] || todayISO(), today = new Date(todayISO() + "T00:00:00");
+    var end = new Date(today); end.setDate(end.getDate() + (6 - end.getDay())); // Saturday of this week
+    var weeksSince = Math.ceil((end - new Date(firstISO + "T00:00:00")) / (86400000 * 7)) + 1;
+    var weeks = Math.max(13, Math.min(26, weeksSince));
+    var start = new Date(end); start.setDate(start.getDate() - (weeks * 7 - 1)); // a Sunday
+
+    var cells = "", months = "", lastLbl = -99, prevM = -1;
+    for (var w = 0; w < weeks; w++) {
+      var col = new Date(start); col.setDate(start.getDate() + w * 7);
+      var m = col.getMonth();
+      if (m !== prevM && (w - lastLbl) >= 3) { months += '<span style="grid-column:' + (w + 1) + '">' + MON_SHORT[m] + '</span>'; lastLbl = w; }
+      prevM = m;
+      for (var d = 0; d < 7; d++) {
+        var dt = new Date(start); dt.setDate(start.getDate() + w * 7 + d);
+        if (dt > today) { cells += '<div class="heat-cell void"></div>'; continue; }
+        var iso = fmt(dt), c = dc[iso] || 0, lvl = c === 0 ? 0 : c >= 4 ? 4 : c;
+        var label = (c ? c + " solve" + (c === 1 ? "" : "s") : "No solves") + " · " + niceFull(iso);
+        cells += '<div class="heat-cell' + (lvl ? " l" + lvl : "") + '" tabindex="0" role="img" data-tip="' + esc(label) + '" aria-label="' + esc(label) + '"></div>';
+      }
+    }
+    var leg = '<div class="heat-leg">Less <span class="cells">' +
+      '<i style="background:var(--heat-empty)"></i>' +
+      '<i style="background:color-mix(in oklab, var(--pc) 26%, var(--surface))"></i>' +
+      '<i style="background:color-mix(in oklab, var(--pc) 50%, var(--surface))"></i>' +
+      '<i style="background:color-mix(in oklab, var(--pc) 74%, var(--surface))"></i>' +
+      '<i style="background:var(--pc)"></i></span> More</div>';
+    return '<div class="panel heat"><h3>Daily activity <span class="hint">last ' + weeks + ' weeks</span></h3>' +
+      '<div class="heat-scroll"><div class="heat-plot">' +
+        '<div class="heat-wd"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>' +
+        '<div class="heat-cal"><div class="heat-months" style="grid-template-columns:repeat(' + weeks + ',var(--cell))">' + months + '</div>' +
+        '<div class="heat-cols">' + cells + '</div></div>' +
+      '</div></div>' + leg + '</div>';
+  }
+  function panelTopics() {
+    var arr = topicTally(insPid), inner;
+    if (!arr.length) {
+      inner = '<div class="topics-empty">No topics tagged yet — add a topic when logging a solve to see focus areas.</div>';
+    } else {
+      var top = arr.slice(0, 8), rest = arr.slice(8);
+      if (rest.length) { var sum = 0; rest.forEach(function (x) { sum += x.n; }); top.push({ topic: "Other (" + rest.length + ")", n: sum }); }
+      var max = 0; top.forEach(function (x) { if (x.n > max) max = x.n; });
+      var total = solvesFor(insPid).length;
+      inner = '<div class="topics">' + top.map(function (x) {
+        var pct = total ? Math.round(x.n / total * 100) : 0;
+        return '<div class="trow" tabindex="0" data-tip="' + esc(x.topic + " · " + x.n + " solve" + (x.n === 1 ? "" : "s") + " · " + pct + "% of logged") + '">' +
+          '<div class="tmeta"><span class="tname">' + esc(x.topic) + '</span><span class="tnum"><b>' + x.n + '</b></span></div>' +
+          '<div class="ttrack"><i style="width:' + (max ? Math.round(x.n / max * 100) : 0) + '%"></i></div></div>';
+      }).join("") + '</div>';
+    }
+    return '<div class="panel"><h3>Top topics</h3>' + inner + '</div>';
+  }
+  function panelRace() {
+    var unit = raceMetric === "pts" ? "points" : "solves";
+    var toggle = '<div class="seg race-seg">' +
+      '<button data-m="pts" class="' + (raceMetric === "pts" ? "on" : "") + '">Points</button>' +
+      '<button data-m="solves" class="' + (raceMetric === "solves" ? "on" : "") + '">Solves</button></div>';
+    var head = '<div class="race-top"><h3 style="margin:0">The race <span class="hint">cumulative ' + unit + '</span></h3>' + toggle + '</div>';
+    var data = raceSeries(raceMetric);
+    if (data.dates.length < 2) {
+      return '<div class="panel race">' + head + '<div class="topics-empty">Not enough history yet — log solves across a couple of days to see the race take shape.</div></div>';
+    }
+    var legend = '<div class="race-legend">' + data.series.map(function (se) {
+      return '<button class="rl-item' + (String(se.id) === String(insPid) ? " sel" : "") + '" data-id="' + se.id + '">' +
+        '<span class="rl-key" style="background:' + se.color + '"></span>' + esc(se.name) + '</button>';
+    }).join("") + '</div>';
+    return '<div class="panel race">' + head + '<div class="race-wrap">' + raceSVG(data) + '</div>' + legend + '</div>';
+  }
+  function raceSVG(data) {
+    var W = 720, H = 260, PL = 34, PR = 14, PT = 14, PB = 24;
+    var plotW = W - PL - PR, plotH = H - PT - PB, n = data.dates.length, max = data.max || 1;
+    var xs = []; for (var i = 0; i < n; i++) xs.push(PL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW));
+    var Y = function (v) { return PT + plotH - (v / max) * plotH; };
+    var step = niceStep(max), grid = "", ylab = "";
+    for (var tk = 0; tk <= max + 0.001; tk += step) {
+      var gy = Y(tk).toFixed(1);
+      grid += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '"/>';
+      ylab += '<text x="' + (PL - 6) + '" y="' + (Y(tk) + 3).toFixed(1) + '" text-anchor="end">' + tk + '</text>';
+    }
+    var xlab = "", xc = Math.min(5, n);
+    for (var k = 0; k < xc; k++) { var xi = Math.round(k * (n - 1) / (xc - 1 || 1)); xlab += '<text x="' + xs[xi].toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(niceShort(data.dates[xi])) + '</text>'; }
+    var lines = "", dots = "", coords = [];
+    data.series.forEach(function (se) {
+      var sel = String(se.id) === String(insPid);
+      var path = se.pts.map(function (v, i) { return (i ? "L" : "M") + xs[i].toFixed(1) + " " + Y(v).toFixed(1); }).join(" ");
+      lines += '<path class="race-line' + (sel ? "" : " dim") + '" style="stroke:' + se.color + '" d="' + path + '"/>';
+      var lv = se.pts[n - 1], ly = Y(lv);
+      dots += '<circle class="race-dot" cx="' + xs[n - 1].toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="' + (sel ? 4.5 : 3.5) + '" style="fill:' + se.color + '"/>';
+      if (sel) dots += '<text x="' + (xs[n - 1] - 7).toFixed(1) + '" y="' + (ly - 7).toFixed(1) + '" text-anchor="end" style="fill:var(--ink);font-weight:700;font-family:var(--mono);font-size:10px">' + lv + '</text>';
+      coords.push(se.pts.map(function (v, i) { return { x: xs[i], y: Y(v), v: v }; }));
+    });
+    lastRace = { n: n, xs: xs, W: W, PT: PT, PB: PB, H: H, dates: data.dates, series: data.series, coords: coords };
+    return '<svg class="race-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Cumulative ' + (raceMetric === "pts" ? "points" : "solves") + ' over time by participant">' +
+      '<g class="race-grid">' + grid + '</g><g class="race-axis">' + ylab + xlab + '</g>' +
+      '<g class="race-lines">' + lines + '</g>' +
+      '<g class="race-hover" hidden><line class="race-cross" y1="' + PT + '" y2="' + (H - PB) + '"/><g class="race-hdots"></g></g>' +
+      dots + '<rect class="race-hit" x="' + PL + '" y="' + PT + '" width="' + plotW + '" height="' + plotH + '"/></svg>';
+  }
+  function wireRace() {
+    var seg = document.querySelector("#insBody .race-seg");
+    if (seg) seg.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { raceMetric = b.dataset.m; renderInsights(); } });
+    var leg = document.querySelector("#insBody .race-legend");
+    if (leg) leg.addEventListener("click", function (e) {
+      var b = e.target.closest(".rl-item"); if (!b) return;
+      insPid = b.dataset.id; try { localStorage.setItem("grind.ins." + room, insPid); } catch (err) {} renderInsights();
+    });
+    var svg = document.querySelector("#insBody .race-svg");
+    if (!svg || !lastRace) return;
+    var L = lastRace, hover = svg.querySelector(".race-hover"), cross = svg.querySelector(".race-cross"), hdots = svg.querySelector(".race-hdots"), hit = svg.querySelector(".race-hit");
+    function nearest(clientX) { var r = svg.getBoundingClientRect(), scale = r.width / L.W, vx = (clientX - r.left) / scale, idx = 0, best = 1e9; for (var i = 0; i < L.n; i++) { var dd = Math.abs(L.xs[i] - vx); if (dd < best) { best = dd; idx = i; } } return idx; }
+    function show(idx, cx, cy) {
+      hover.hidden = false;
+      cross.setAttribute("x1", L.xs[idx]); cross.setAttribute("x2", L.xs[idx]);
+      hdots.innerHTML = L.series.map(function (se, si) { var c = L.coords[si][idx]; return '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="3.5" class="race-dot" style="fill:' + se.color + '"/>'; }).join("");
+      var rows = L.series.map(function (se, si) { return { name: se.name, color: se.color, v: L.coords[si][idx].v }; }).sort(function (a, b) { return b.v - a.v; });
+      showTipAt('<div class="tt-h">' + esc(niceFull(L.dates[idx])) + '</div>' + rows.map(function (r) {
+        return '<div class="tt-r"><span class="k" style="background:' + r.color + '"></span><span class="v">' + r.v + '</span> <span class="n">' + esc(r.name) + '</span></div>';
+      }).join(""), cx, cy);
+    }
+    hit.addEventListener("mousemove", function (e) { show(nearest(e.clientX), e.clientX, e.clientY); });
+    hit.addEventListener("mouseleave", function () { hover.hidden = true; hideTip(); });
+    hit.addEventListener("touchstart", function (e) { var t = e.touches[0]; if (t) show(nearest(t.clientX), t.clientX, t.clientY); }, { passive: true });
+    hit.addEventListener("touchmove", function (e) { var t = e.touches[0]; if (t) show(nearest(t.clientX), t.clientX, t.clientY); }, { passive: true });
+    svg.setAttribute("tabindex", "0");
+    var kidx = L.n - 1;
+    svg.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") kidx = Math.max(0, kidx - 1);
+      else if (e.key === "ArrowRight") kidx = Math.min(L.n - 1, kidx + 1);
+      else return;
+      e.preventDefault();
+      var r = svg.getBoundingClientRect(), scale = r.width / L.W;
+      show(kidx, r.left + L.xs[kidx] * scale, r.top + (L.PT + 24) * scale);
+    });
+    svg.addEventListener("blur", function () { hover.hidden = true; hideTip(); });
   }
 
   // ---- sync status ----
@@ -522,7 +960,7 @@
   function leaveRoom() {
     try { localStorage.removeItem("grind.room"); } catch (e) {}
     if (channel) { db.removeChannel(channel); channel = null; }
-    room = null; players = []; solves = []; filter = "all";
+    room = null; players = []; solves = []; filter = "all"; editingId = null; insPid = null; hideTip();
     document.getElementById("app").hidden = true;
     document.getElementById("gate").hidden = false;
     showGate();
@@ -573,6 +1011,11 @@
   });
   document.getElementById("f-who").addEventListener("change", function () {
     try { localStorage.setItem("grind.me." + room, this.value); } catch (e) {}
+  });
+  document.getElementById("insWho").addEventListener("change", function () {
+    insPid = this.value;
+    try { localStorage.setItem("grind.ins." + room, insPid); } catch (e) {}
+    renderInsights();
   });
   document.getElementById("filter").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
