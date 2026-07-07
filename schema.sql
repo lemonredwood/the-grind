@@ -13,6 +13,12 @@ create table if not exists public.grind_players (
 );
 create index if not exists grind_players_room_idx on public.grind_players (room);
 
+-- Optional LeetCode sync: link a person to their public LeetCode profile so their
+-- score, streak and activity heatmap auto-populate. Safe to run on an existing table.
+alter table public.grind_players add column if not exists leetcode_username text;
+alter table public.grind_players add column if not exists lc_stats     jsonb;
+alter table public.grind_players add column if not exists lc_synced_at timestamptz;
+
 -- One row per solved problem, tied to a person
 create table if not exists public.grind_solves (
   id         bigint generated always as identity primary key,

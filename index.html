@@ -106,6 +106,15 @@
   .emptyboard { grid-column:1/-1; padding:30px 20px; text-align:center; color:var(--muted); border:1px dashed var(--line-strong); border-radius:var(--radius); background:var(--surface); font-size:.9rem; }
   .emptyboard b { color:var(--ink); }
 
+  .lcrow { display:flex; align-items:center; gap:6px; margin-top:11px; padding-top:10px; border-top:1px dashed var(--line); }
+  .lcinput { flex:1; min-width:0; font-family:var(--mono); font-size:.72rem; color:var(--muted); background:transparent; border:none; border-bottom:1px dashed transparent; padding:2px 0; }
+  .lcinput::placeholder { color:var(--faint); }
+  .lcinput:hover { border-bottom-color:var(--line-strong); }
+  .lcinput:focus { outline:none; color:var(--ink); border-bottom-color:var(--pc); }
+  .lcstat { flex:none; font-family:var(--mono); font-size:.62rem; font-weight:600; letter-spacing:.02em; white-space:nowrap; }
+  .lcstat.ok { color:var(--pc); }
+  .lcstat.pend { color:var(--faint); }
+
   /* add person */
   .addperson { margin:0 0 22px; }
   .addperson form { display:flex; gap:8px; }
@@ -290,6 +299,7 @@
     </div>
     <div class="actions">
       <button id="copyRoom" class="roomchip" title="Copy room code to share"><span class="rdot" id="roomDot"></span><b id="roomCode">room</b> · copy</button>
+      <button id="syncLc" title="Fetch everyone's LeetCode stats">↻ Sync</button>
       <button id="export">↓ Export</button>
       <button id="clear" class="ghost-danger">Clear solves</button>
       <button id="leave">Leave</button>
@@ -365,6 +375,7 @@
   };
 
   var TBL_P = "grind_players", TBL_S = "grind_solves";
+  var LC_API = "https://alfa-leetcode-api.onrender.com/"; // CORS-enabled LeetCode stats proxy
   var POINTS = { e: 1, m: 3, h: 5 };
   var DIFF_NAME = { e: "Easy", m: "Medium", h: "Hard" };
   // Distinct hues for the first several people; golden-angle after that.
@@ -375,6 +386,9 @@
   var solves = [];    // [{id, player_id, title, num, topic, diff, date}]
   var colorIndex = {};// player_id -> stable color slot
   var byId = {};      // player_id -> {name, color}
+  var lcById = {};    // player_id -> normalized LeetCode stats (when a player is synced)
+  var lcSyncing = {}; // player_id -> true while a LeetCode fetch is in flight
+  var lcAttempt = {}; // player_id -> last sync attempt time (throttles auto-retry on failure)
   var filter = "all";
   var editingId = null;     // id of the log entry currently being edited inline
   var insPid = null;        // participant selected in the Insights section
@@ -393,9 +407,11 @@
   function hueFor(i) { return i < HUES.length ? HUES[i] : Math.round((245 + i * 137.508) % 360); }
   function pColor(pid) { return "hsl(" + hueFor(colorIndex[pid] || 0) + " 68% 56%)"; }
 
+  function lcStats(pid) { return lcById[pid] || null; }
+  function hasLC(pid) { return !!lcById[pid]; }
+
   function currentStreak(pid) {
-    var set = {};
-    solves.forEach(function (s) { if (s.player_id === pid) set[s.date] = true; });
+    var set = dayCounts(pid); // LeetCode calendar when synced, else logged solves
     var cur = new Date(todayISO() + "T00:00:00");
     if (!set[fmt(cur)]) { cur.setDate(cur.getDate() - 1); if (!set[fmt(cur)]) return 0; }
     var streak = 0;
@@ -403,6 +419,8 @@
     return streak;
   }
   function tally(pid) {
+    var lc = lcStats(pid);
+    if (lc) return { e: lc.e, m: lc.m, h: lc.h, total: lc.solved, pts: lc.e * POINTS.e + lc.m * POINTS.m + lc.h * POINTS.h };
     var t = { e: 0, m: 0, h: 0, pts: 0, total: 0 };
     solves.forEach(function (s) { if (s.player_id !== pid) return; t[s.diff]++; t.pts += POINTS[s.diff]; t.total++; });
     return t;
@@ -419,9 +437,9 @@
   function render() { rebuildLookups(); renderBoard(); renderCrew(); renderFilter(); renderWho(); renderRows(); renderInsights(); }
 
   function rebuildLookups() {
-    colorIndex = {}; byId = {};
+    colorIndex = {}; byId = {}; lcById = {};
     players.forEach(function (p, i) { colorIndex[p.id] = i; });
-    players.forEach(function (p) { byId[p.id] = { name: p.name, color: pColor(p.id) }; });
+    players.forEach(function (p) { byId[p.id] = { name: p.name, color: pColor(p.id) }; if (p.stats) lcById[p.id] = p.stats; });
   }
   function renderCrew() {
     document.getElementById("crew").textContent = players.length + (players.length === 1 ? " grinding" : " grinding");
@@ -430,7 +448,7 @@
   function renderBoard() {
     var board = document.getElementById("board");
     var ae = document.activeElement;
-    if (ae && ae.classList && ae.classList.contains("nameinput")) { boardDirty = true; return; }
+    if (ae && ae.classList && (ae.classList.contains("nameinput") || ae.classList.contains("lcinput"))) { boardDirty = true; return; }
     boardDirty = false;
 
     if (!players.length) {
@@ -457,6 +475,11 @@
     Array.prototype.forEach.call(board.querySelectorAll(".removep"), function (b) {
       b.addEventListener("click", function () { removePlayer(b.dataset.id); });
     });
+    Array.prototype.forEach.call(board.querySelectorAll(".lcinput"), function (inp) {
+      inp.addEventListener("change", function () { setLeetcode(inp.dataset.id, inp.value.trim()); });
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") inp.blur(); });
+      inp.addEventListener("blur", function () { if (boardDirty) renderBoard(); });
+    });
   }
 
   function cardHTML(p, t, streak, rank, leading) {
@@ -474,7 +497,13 @@
         '</div>' +
         '<div class="breakdown"><div class="bar">' + seg + '</div><div class="blabels">' +
           lbl("e", "Easy", t.e) + lbl("m", "Med", t.m) + lbl("h", "Hard", t.h) + '</div></div>' +
+        '<div class="lcrow"><input class="lcinput" data-id="' + p.id + '" value="' + esc(p.lc || "") + '" placeholder="＋ LeetCode username" maxlength="40" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="LeetCode username for ' + esc(p.name) + '">' + lcBadge(p) + '</div>' +
       '</div>';
+  }
+  function lcBadge(p) {
+    if (p.stats) return '<span class="lcstat ok" title="Score, streak and heatmap are synced from LeetCode">🔗 synced</span>';
+    if (p.lc) return '<span class="lcstat pend" title="Press Sync to fetch">· pending</span>';
+    return '';
   }
   function pctBar(cls, n, total) { var w = (n / total) * 100; return w > 0 ? '<i class="' + cls + '" style="width:' + w + '%"></i>' : ""; }
   function lbl(cls, name, n) {
@@ -596,7 +625,11 @@
   var MON_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   function solvesFor(pid) { return solves.filter(function (s) { return String(s.player_id) === String(pid); }); }
-  function dayCounts(pid) { var m = {}; solvesFor(pid).forEach(function (s) { m[s.date] = (m[s.date] || 0) + 1; }); return m; }
+  function dayCounts(pid) {
+    var lc = lcStats(pid);
+    if (lc) { var o = {}; Object.keys(lc.cal).forEach(function (d) { o[d] = lc.cal[d]; }); return o; }
+    var m = {}; solvesFor(pid).forEach(function (s) { m[s.date] = (m[s.date] || 0) + 1; }); return m;
+  }
   function daysBetween(aISO, bISO) { return Math.round((new Date(bISO + "T00:00:00") - new Date(aISO + "T00:00:00")) / 86400000); }
   function niceShort(iso) { var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
   function niceFull(iso) { var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]); return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
@@ -613,7 +646,7 @@
     var active = days.length, first = days[0] || todayISO();
     var span = daysBetween(first, todayISO()) + 1;
     var wd = [0, 0, 0, 0, 0, 0, 0];
-    solvesFor(pid).forEach(function (s) { wd[new Date(s.date + "T00:00:00").getDay()]++; });
+    Object.keys(dc).forEach(function (d) { wd[new Date(d + "T00:00:00").getDay()] += dc[d]; });
     var bi = -1, bn = 0; wd.forEach(function (n, i) { if (n > bn) { bn = n; bi = i; } });
     return {
       cur: currentStreak(pid), longest: longestStreak(pid), active: active, span: span,
@@ -629,17 +662,25 @@
       .sort(function (a, b) { return b.n - a.n || a.topic.localeCompare(b.topic); });
   }
   function raceSeries(metric) {
-    var val = metric === "pts" ? function (s) { return POINTS[s.diff]; } : function () { return 1; };
-    var dset = {}; solves.forEach(function (s) { dset[s.date] = true; });
+    // per-player daily increment: points for manual players (pts metric), else day counts
+    // (LeetCode calendar for synced players, or logged-solve counts) — windowed to the last 90 days.
+    var incOf = function (pid) {
+      var lc = lcStats(pid);
+      if (metric === "pts" && !lc) { var m = {}; solvesFor(pid).forEach(function (s) { m[s.date] = (m[s.date] || 0) + POINTS[s.diff]; }); return m; }
+      return dayCounts(pid);
+    };
+    var start = new Date(todayISO() + "T00:00:00"); start.setDate(start.getDate() - 90);
+    var startISO = fmt(start);
+    var incs = players.map(function (p) { return { p: p, inc: incOf(p.id) }; });
+    var dset = {};
+    incs.forEach(function (x) { Object.keys(x.inc).forEach(function (d) { if (d >= startISO) dset[d] = true; }); });
     var dl = Object.keys(dset).sort();
     if (!dl.length) return { dates: [], series: [], max: 0 };
     var today = todayISO();
-    if (dl[dl.length - 1] < today) dl.push(today); // extend flat to today
-    var series = players.map(function (p) {
-      var inc = {};
-      solves.forEach(function (s) { if (String(s.player_id) === String(p.id)) inc[s.date] = (inc[s.date] || 0) + val(s); });
-      var cum = 0, pts = dl.map(function (d) { cum += (inc[d] || 0); return cum; });
-      return { id: p.id, name: p.name, color: pColor(p.id), pts: pts };
+    if (dl[dl.length - 1] < today) dl.push(today);
+    var series = incs.map(function (x) {
+      var cum = 0, pts = dl.map(function (d) { cum += (x.inc[d] || 0); return cum; });
+      return { id: x.p.id, name: x.p.name, color: pColor(x.p.id), pts: pts };
     });
     var max = 0; series.forEach(function (se) { se.pts.forEach(function (v) { if (v > max) max = v; }); });
     return { dates: dl, series: series, max: max };
@@ -765,7 +806,9 @@
   function panelTopics() {
     var arr = topicTally(insPid), inner;
     if (!arr.length) {
-      inner = '<div class="topics-empty">No topics tagged yet — add a topic when logging a solve to see focus areas.</div>';
+      inner = hasLC(insPid)
+        ? '<div class="topics-empty">Topic breakdown isn\'t part of LeetCode sync — it needs solves logged with a topic.</div>'
+        : '<div class="topics-empty">No topics tagged yet — add a topic when logging a solve to see focus areas.</div>';
     } else {
       var top = arr.slice(0, 8), rest = arr.slice(8);
       if (rest.length) { var sum = 0; rest.forEach(function (x) { sum += x.n; }); top.push({ topic: "Other (" + rest.length + ")", n: sum }); }
@@ -785,7 +828,7 @@
     var toggle = '<div class="seg race-seg">' +
       '<button data-m="pts" class="' + (raceMetric === "pts" ? "on" : "") + '">Points</button>' +
       '<button data-m="solves" class="' + (raceMetric === "solves" ? "on" : "") + '">Solves</button></div>';
-    var head = '<div class="race-top"><h3 style="margin:0">The race <span class="hint">cumulative ' + unit + '</span></h3>' + toggle + '</div>';
+    var head = '<div class="race-top"><h3 style="margin:0">The race <span class="hint">cumulative ' + unit + ' · last 90 days</span></h3>' + toggle + '</div>';
     var data = raceSeries(raceMetric);
     if (data.dates.length < 2) {
       return '<div class="panel race">' + head + '<div class="topics-empty">Not enough history yet — log solves across a couple of days to see the race take shape.</div></div>';
@@ -886,9 +929,10 @@
     ]).then(function (res) {
       if (res[0].error) throw res[0].error;
       if (res[1].error) throw res[1].error;
-      players = (res[0].data || []).map(function (r) { return { id: r.id, name: r.name }; });
+      players = (res[0].data || []).map(function (r) { return { id: r.id, name: r.name, lc: r.leetcode_username || "", stats: r.lc_stats || null, syncedAt: r.lc_synced_at || null }; });
       solves = (res[1].data || []).map(mapSolve);
       render();
+      maybeAutoSync();
       if (channel && channel.state === "joined") setSync("live", "Live · changes sync to everyone");
     }).catch(function (err) {
       console.error(err);
@@ -918,7 +962,7 @@
     db.from(TBL_S).delete().eq("room", room).eq("id", id).then(function (r) { if (r.error) console.error(r.error); scheduleRefresh(); });
   }
   function renamePlayer(id, name) {
-    players = players.map(function (p) { return String(p.id) === String(id) ? { id: p.id, name: name } : p; }); render();
+    players = players.map(function (p) { return String(p.id) === String(id) ? { id: p.id, name: name, lc: p.lc, stats: p.stats, syncedAt: p.syncedAt } : p; }); render();
     db.from(TBL_P).update({ name: name }).eq("room", room).eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
   }
   function addPlayer(name) {
@@ -942,6 +986,66 @@
     db.from(TBL_S).delete().eq("room", room).then(function (r) { if (r.error) { console.error(r.error); alert("Couldn't clear — check your connection."); } else scheduleRefresh(); });
   }
 
+  // ---- leetcode sync ----
+  function setLeetcode(id, uname) {
+    players = players.map(function (p) { return String(p.id) === String(id) ? { id: p.id, name: p.name, lc: uname, stats: uname ? p.stats : null, syncedAt: p.syncedAt } : p; });
+    render();
+    var patch = uname ? { leetcode_username: uname } : { leetcode_username: null, lc_stats: null, lc_synced_at: null };
+    db.from(TBL_P).update(patch).eq("room", room).eq("id", id).then(function (r) {
+      if (r.error) { console.error(r.error); alert("Couldn't save the LeetCode username — is the column added? (see SETUP)"); }
+      if (uname) syncOne(id, uname); else scheduleRefresh();
+    });
+  }
+  function normalizeCal(raw) {
+    var cal = {};
+    try {
+      var obj = JSON.parse(raw || "{}");
+      Object.keys(obj).forEach(function (k) {
+        var d = new Date((+k) * 1000);
+        var iso = d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+        cal[iso] = (cal[iso] || 0) + (+obj[k] || 0);
+      });
+    } catch (e) {}
+    return cal;
+  }
+  function syncOne(id, uname) {
+    if (!uname || lcSyncing[id]) return Promise.resolve();
+    lcSyncing[id] = true; lcAttempt[id] = Date.now();
+    var u = encodeURIComponent(uname);
+    return Promise.all([
+      fetch(LC_API + u + "/solved").then(function (r) { return r.json(); }),
+      fetch(LC_API + u + "/calendar").then(function (r) { return r.json(); })
+    ]).then(function (res) {
+      var s = res[0] || {}, c = res[1] || {};
+      if (s.errors || (s.solvedProblem == null && s.easySolved == null)) throw new Error("no LeetCode data for " + uname);
+      var stats = { solved: s.solvedProblem || 0, e: s.easySolved || 0, m: s.mediumSolved || 0, h: s.hardSolved || 0, cal: normalizeCal(c.submissionCalendar) };
+      return db.from(TBL_P).update({ lc_stats: stats, lc_synced_at: new Date().toISOString() }).eq("room", room).eq("id", id)
+        .then(function (r) { if (r.error) console.error(r.error); });
+    }).catch(function (err) { console.error("LeetCode sync failed:", err && err.message); })
+      .then(function () { lcSyncing[id] = false; scheduleRefresh(); });
+  }
+  function syncLeetcode() {
+    var linked = players.filter(function (p) { return p.lc; });
+    var btn = document.getElementById("syncLc");
+    if (!linked.length) { alert("Add a LeetCode username on someone's card first — the field under their name."); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "↻ Syncing…"; }
+    var i = 0;
+    (function next() {
+      if (i >= linked.length) { if (btn) { btn.disabled = false; btn.textContent = "↻ Sync"; } scheduleRefresh(); return; }
+      var p = linked[i++];
+      syncOne(p.id, p.lc).then(next);
+    })();
+  }
+  function maybeAutoSync() {
+    var now = Date.now(), STALE = 30 * 60 * 1000;
+    players.forEach(function (p) {
+      if (!p.lc || lcSyncing[p.id]) return;
+      if (lcAttempt[p.id] && now - lcAttempt[p.id] < STALE) return;
+      var t = p.syncedAt ? Date.parse(p.syncedAt) : 0;
+      if (now - t > STALE) syncOne(p.id, p.lc);
+    });
+  }
+
   // ---- room join / leave ----
   function normalizeCode(s) { return String(s || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40); }
 
@@ -960,7 +1064,8 @@
   function leaveRoom() {
     try { localStorage.removeItem("grind.room"); } catch (e) {}
     if (channel) { db.removeChannel(channel); channel = null; }
-    room = null; players = []; solves = []; filter = "all"; editingId = null; insPid = null; hideTip();
+    room = null; players = []; solves = []; filter = "all"; editingId = null; insPid = null;
+    lcById = {}; lcSyncing = {}; lcAttempt = {}; hideTip();
     document.getElementById("app").hidden = true;
     document.getElementById("gate").hidden = false;
     showGate();
@@ -1033,6 +1138,7 @@
     a.href = URL.createObjectURL(blob); a.download = "grind-" + room + "-" + todayISO() + ".json"; a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
+  document.getElementById("syncLc").addEventListener("click", syncLeetcode);
   document.getElementById("clear").addEventListener("click", clearSolves);
   document.getElementById("leave").addEventListener("click", leaveRoom);
 
