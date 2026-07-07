@@ -66,6 +66,11 @@
   button.primary:disabled { filter:none; }
   button.ghost-danger { color:var(--hard); border-color:transparent; background:transparent; }
   button.ghost-danger:hover { background:var(--hard-soft); }
+  #adminBtn.adminon { color:var(--ok); border-color:var(--ok); }
+  .mewho { font-family:var(--sans); font-size:.8rem; font-weight:550; color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--radius-sm); padding:8px 9px; max-width:150px; }
+  .mewho:focus { outline:none; border-color:var(--p1); box-shadow:0 0 0 3px var(--p1-soft); }
+  .nameinput[readonly], .lcinput[readonly] { cursor:default; }
+  .nameinput[readonly]:hover, .lcinput[readonly]:hover { border-bottom-color:transparent; }
   :focus-visible { outline:2px solid var(--p1); outline-offset:2px; }
 
   .roomchip { font-family:var(--mono); font-size:.78rem; letter-spacing:.02em; }
@@ -263,7 +268,7 @@
   .race-grid line { stroke:var(--line); stroke-width:1; }
   .race-axis text { fill:var(--muted); font-family:var(--mono); font-size:9px; }
   .race-line { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transition:opacity .12s; }
-  .race-line.dim { opacity:.28; }
+  .race-line.sel { stroke-width:3; }
   .race-dot { stroke:var(--surface); stroke-width:2; }
   .race-cross { stroke:var(--line-strong); stroke-width:1; pointer-events:none; }
   .race-hover { pointer-events:none; }
@@ -299,8 +304,10 @@
     </div>
     <div class="actions">
       <button id="copyRoom" class="roomchip" title="Copy room code to share"><span class="rdot" id="roomDot"></span><b id="roomCode">room</b> · copy</button>
+      <select id="meWho" class="mewho" title="Pick who you are — this controls what you can edit" aria-label="Who are you"></select>
       <button id="syncLc" title="Fetch everyone's LeetCode stats">↻ Sync</button>
       <button id="export">↓ Export</button>
+      <button id="adminBtn" title="Admin"></button>
       <button id="clear" class="ghost-danger">Clear solves</button>
       <button id="leave">Leave</button>
     </div>
@@ -389,6 +396,8 @@
   var lcById = {};    // player_id -> normalized LeetCode stats (when a player is synced)
   var lcSyncing = {}; // player_id -> true while a LeetCode fetch is in flight
   var lcAttempt = {}; // player_id -> last sync attempt time (throttles auto-retry on failure)
+  var roomAdminHash = undefined; // undefined=unknown, null=unclaimed, string=admin passcode hash
+  var isAdmin = false;           // whether THIS device has unlocked admin for the room
   var filter = "all";
   var editingId = null;     // id of the log entry currently being edited inline
   var insPid = null;        // participant selected in the Insights section
@@ -434,7 +443,7 @@
   }
 
   // ---- render ----
-  function render() { rebuildLookups(); renderBoard(); renderCrew(); renderFilter(); renderWho(); renderRows(); renderInsights(); }
+  function render() { computeAdmin(); rebuildLookups(); renderBoard(); renderCrew(); renderFilter(); renderWho(); renderRows(); renderInsights(); renderRoleUI(); }
 
   function rebuildLookups() {
     colorIndex = {}; byId = {}; lcById = {};
@@ -483,12 +492,12 @@
   }
 
   function cardHTML(p, t, streak, rank, leading) {
-    var color = pColor(p.id);
+    var color = pColor(p.id), mine = isAdmin || isMe(p.id);
     var seg = t.total ? pctBar("e", t.e, t.total) + pctBar("m", t.m, t.total) + pctBar("h", t.h, t.total) : "";
     return '<div class="pcard' + (leading ? " leading" : "") + '" style="--pc:' + color + '">' +
-        '<button class="removep" data-id="' + p.id + '" title="Remove from room" aria-label="Remove ' + esc(p.name) + '">✕</button>' +
+        (isAdmin ? '<button class="removep" data-id="' + p.id + '" title="Remove from room" aria-label="Remove ' + esc(p.name) + '">✕</button>' : '') +
         '<div class="pname"><span class="rk">' + rank + '</span><span class="dot"></span>' +
-          '<input class="nameinput" data-id="' + p.id + '" value="' + esc(p.name) + '" aria-label="Name" maxlength="24">' +
+          '<input class="nameinput" data-id="' + p.id + '" value="' + esc(p.name) + '" aria-label="Name" maxlength="24"' + (mine ? '' : ' readonly') + '>' +
           (leading ? '<span class="crown" title="In the lead">👑</span>' : '') + '</div>' +
         '<div class="statrow">' +
           '<div class="stat"><div class="k">' + t.pts + '<span class="u">pts</span></div><div class="l">Score</div></div>' +
@@ -497,7 +506,7 @@
         '</div>' +
         '<div class="breakdown"><div class="bar">' + seg + '</div><div class="blabels">' +
           lbl("e", "Easy", t.e) + lbl("m", "Med", t.m) + lbl("h", "Hard", t.h) + '</div></div>' +
-        '<div class="lcrow"><input class="lcinput" data-id="' + p.id + '" value="' + esc(p.lc || "") + '" placeholder="＋ LeetCode username" maxlength="40" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="LeetCode username for ' + esc(p.name) + '">' + lcBadge(p) + '</div>' +
+        '<div class="lcrow"><input class="lcinput" data-id="' + p.id + '" value="' + esc(p.lc || "") + '" placeholder="＋ LeetCode username" maxlength="40" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="LeetCode username for ' + esc(p.name) + '"' + (mine ? '' : ' readonly') + '>' + lcBadge(p) + '</div>' +
       '</div>';
   }
   function lcBadge(p) {
@@ -531,8 +540,14 @@
     var prev = sel.value, saved = "";
     try { saved = localStorage.getItem("grind.me." + room) || ""; } catch (e) {}
     var exists = function (v) { return v && players.some(function (p) { return String(p.id) === String(v); }); };
-    sel.innerHTML = players.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join("");
-    sel.value = exists(prev) ? prev : (exists(saved) ? saved : String(players[0].id));
+    var me = meId();
+    if (!isAdmin && exists(me)) { // users can only log as themselves
+      sel.innerHTML = players.filter(function (p) { return String(p.id) === String(me); }).map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join("");
+      sel.value = String(me);
+    } else {
+      sel.innerHTML = players.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join("");
+      sel.value = exists(prev) ? prev : (exists(saved) ? saved : String(players[0].id));
+    }
   }
 
   function renderRows() {
@@ -559,6 +574,7 @@
     tbody.innerHTML = list.map(function (s) {
       if (String(s.id) === String(editingId)) return editRowHTML(s);
       var who = byId[s.player_id] || { name: "—", color: "var(--faint)" };
+      var canRow = isAdmin || isMe(s.player_id);
       var num = s.num ? '<span class="ptopic"> #' + esc(s.num) + '</span>' : "";
       var topic = s.topic ? '<div class="ptopic">' + esc(s.topic) + '</div>' : "";
       return '<tr>' +
@@ -567,8 +583,7 @@
         '<td><span class="who"><span class="d" style="background:' + who.color + '"></span>' + esc(who.name) + '</span></td>' +
         '<td class="date">' + niceDate(s.date) + '</td>' +
         '<td class="pts">+' + POINTS[s.diff] + '</td>' +
-        '<td style="text-align:right"><button class="edit" data-id="' + s.id + '" title="Edit" aria-label="Edit">✎</button>' +
-          '<button class="del" data-id="' + s.id + '" title="Delete" aria-label="Delete">✕</button></td></tr>';
+        '<td style="text-align:right">' + (canRow ? '<button class="edit" data-id="' + s.id + '" title="Edit" aria-label="Edit">✎</button><button class="del" data-id="' + s.id + '" title="Delete" aria-label="Delete">✕</button>' : '') + '</td></tr>';
     }).join("");
     Array.prototype.forEach.call(tbody.querySelectorAll(".del"), function (b) {
       b.addEventListener("click", function () { deleteSolve(b.dataset.id); });
@@ -856,7 +871,7 @@
     data.series.forEach(function (se) {
       var sel = String(se.id) === String(insPid);
       var path = se.pts.map(function (v, i) { return (i ? "L" : "M") + xs[i].toFixed(1) + " " + Y(v).toFixed(1); }).join(" ");
-      lines += '<path class="race-line' + (sel ? "" : " dim") + '" style="stroke:' + se.color + '" d="' + path + '"/>';
+      lines += '<path class="race-line' + (sel ? " sel" : "") + '" style="stroke:' + se.color + '" d="' + path + '"/>';
       var lv = se.pts[n - 1], ly = Y(lv);
       dots += '<circle class="race-dot" cx="' + xs[n - 1].toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="' + (sel ? 4.5 : 3.5) + '" style="fill:' + se.color + '"/>';
       if (sel) dots += '<text x="' + (xs[n - 1] - 7).toFixed(1) + '" y="' + (ly - 7).toFixed(1) + '" text-anchor="end" style="fill:var(--ink);font-weight:700;font-family:var(--mono);font-size:10px">' + lv + '</text>';
@@ -1046,12 +1061,74 @@
     });
   }
 
+  // ---- soft roles (honor-system admin) ----
+  function meId() { try { return localStorage.getItem("grind.me." + room) || ""; } catch (e) { return ""; } }
+  function isMe(pid) { var m = meId(); return m !== "" && String(pid) === String(m); }
+  function computeAdmin() {
+    if (roomAdminHash === undefined || roomAdminHash === null) { isAdmin = true; return; } // unknown or unclaimed → full access (legacy)
+    var local = ""; try { local = localStorage.getItem("grind.admin." + room) || ""; } catch (e) {}
+    isAdmin = !!local && local === roomAdminHash;
+  }
+  function sha256Hex(str) {
+    if (window.crypto && crypto.subtle && window.TextEncoder) {
+      return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+      });
+    }
+    return Promise.resolve("plain:" + str); // fallback where SubtleCrypto is unavailable (e.g. file://)
+  }
+  function fetchRoomMeta() {
+    if (!db || !room) return;
+    db.from("grind_rooms").select("admin_hash").eq("room", room).maybeSingle().then(function (r) {
+      roomAdminHash = (r.error || !r.data) ? null : (r.data.admin_hash || null);
+      render();
+    }, function () { roomAdminHash = null; render(); });
+  }
+  function claimAdmin() {
+    var code = prompt("Set an admin passcode for room “" + room + "”.\nYou'll use it to unlock admin controls; teammates won't have it.");
+    if (!code) return;
+    sha256Hex(code).then(function (h) {
+      db.from("grind_rooms").upsert({ room: room, admin_hash: h }).then(function (r) {
+        if (r.error) { console.error(r.error); alert("Couldn't set admin — re-run schema.sql to add the room-roles table (see SETUP)."); return; }
+        try { localStorage.setItem("grind.admin." + room, h); } catch (e) {}
+        roomAdminHash = h; render();
+      });
+    });
+  }
+  function unlockAdmin() {
+    var code = prompt("Enter the admin passcode for “" + room + "”:");
+    if (!code) return;
+    sha256Hex(code).then(function (h) {
+      if (h === roomAdminHash) { try { localStorage.setItem("grind.admin." + room, h); } catch (e) {} render(); }
+      else alert("That passcode doesn't match.");
+    });
+  }
+  function stepDownAdmin() { try { localStorage.removeItem("grind.admin." + room); } catch (e) {} render(); }
+  function onAdminBtn() { if (roomAdminHash == null) claimAdmin(); else if (isAdmin) stepDownAdmin(); else unlockAdmin(); }
+  function renderRoleUI() {
+    var btn = document.getElementById("adminBtn");
+    if (btn) {
+      if (roomAdminHash == null) { btn.textContent = "Set admin"; btn.title = "Claim admin for this room with a passcode"; btn.className = ""; }
+      else if (isAdmin) { btn.textContent = "🔓 Admin"; btn.title = "You're the admin — click to step down on this device"; btn.className = "adminon"; }
+      else { btn.textContent = "🔒 Admin"; btn.title = "Enter the passcode to unlock admin controls"; btn.className = ""; }
+    }
+    var clr = document.getElementById("clear"); if (clr) clr.hidden = !isAdmin;
+    var mw = document.getElementById("meWho");
+    if (mw) {
+      mw.innerHTML = players.length
+        ? '<option value="">who are you?</option>' + players.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join("")
+        : '<option value="">—</option>';
+      mw.value = meId();
+    }
+  }
+
   // ---- room join / leave ----
   function normalizeCode(s) { return String(s || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40); }
 
   function enterRoom(code) {
     room = normalizeCode(code);
     if (!room) return;
+    roomAdminHash = undefined; isAdmin = false;
     try { localStorage.setItem("grind.room", room); } catch (e) {}
     document.getElementById("gate").hidden = true;
     document.getElementById("app").hidden = false;
@@ -1060,12 +1137,13 @@
     setSync("warn", "Connecting…");
     subscribe();
     refresh();
+    fetchRoomMeta();
   }
   function leaveRoom() {
     try { localStorage.removeItem("grind.room"); } catch (e) {}
     if (channel) { db.removeChannel(channel); channel = null; }
     room = null; players = []; solves = []; filter = "all"; editingId = null; insPid = null;
-    lcById = {}; lcSyncing = {}; lcAttempt = {}; hideTip();
+    lcById = {}; lcSyncing = {}; lcAttempt = {}; roomAdminHash = undefined; isAdmin = false; hideTip();
     document.getElementById("app").hidden = true;
     document.getElementById("gate").hidden = false;
     showGate();
@@ -1139,6 +1217,8 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
   document.getElementById("syncLc").addEventListener("click", syncLeetcode);
+  document.getElementById("adminBtn").addEventListener("click", onAdminBtn);
+  document.getElementById("meWho").addEventListener("change", function () { try { localStorage.setItem("grind.me." + room, this.value); } catch (e) {} render(); });
   document.getElementById("clear").addEventListener("click", clearSolves);
   document.getElementById("leave").addEventListener("click", leaveRoom);
 

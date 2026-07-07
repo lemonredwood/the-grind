@@ -19,6 +19,19 @@ alter table public.grind_players add column if not exists leetcode_username text
 alter table public.grind_players add column if not exists lc_stats     jsonb;
 alter table public.grind_players add column if not exists lc_synced_at timestamptz;
 
+-- Soft roles: one row per room holds the admin passcode hash (honor-system admin gate).
+create table if not exists public.grind_rooms (
+  room       text primary key,
+  admin_hash text,
+  created_at timestamptz not null default now()
+);
+grant all on public.grind_rooms to anon;
+alter table public.grind_rooms enable row level security;
+drop policy if exists "anon rooms" on public.grind_rooms;
+create policy "anon rooms" on public.grind_rooms for all to anon using (true) with check (true);
+alter table public.grind_rooms replica identity full;
+do $$ begin alter publication supabase_realtime add table public.grind_rooms; exception when others then null; end $$;
+
 -- One row per solved problem, tied to a person
 create table if not exists public.grind_solves (
   id         bigint generated always as identity primary key,

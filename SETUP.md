@@ -97,3 +97,5 @@ This folder is already a git repo with a commit ready to go.
 | Dot stays red / “Reconnecting” | Re-run `schema.sql` (enables realtime); or use the hosted URL. |
 | A teammate's change didn't appear | Re-run `schema.sql` — the `replica identity full` lines make deletes propagate. |
 | Can't add a person / insert fails | Re-run `schema.sql` — the grants + policies allow it. |
+| “Couldn't save the LeetCode username” | Re-run `schema.sql` — it adds the optional `leetcode_username` / `lc_stats` / `lc_synced_at` columns that LeetCode sync writes to. |
+| “Couldn't set admin” / roles do nothing | Re-run `schema.sql` — it adds the `grind_rooms` table that holds the admin passcode. |
